@@ -1,0 +1,11 @@
+{
+  "name": "create-backfill-count-tasks",
+  "version": "1.0.0",
+  "description": "Create backfill count tasks",
+  "dependencies": {},
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/ankous/anko_microservices"
+  }
+}

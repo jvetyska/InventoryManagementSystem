@@ -1,0 +1,451 @@
+Parameters:
+  BaseStack:
+    Type: String
+    Description: The name of the CloudFormation base stack which includes all networking resources
+    Default: kmart-stack
+  ClientName:
+    Type: String
+    Description: The name of the client. This should be the same name across all dev, staging, and prod environments
+    Default: kmart
+  EnvironmentType:
+    Type: String
+    Description: The environment type. This must be dev, uat, or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - uat
+      - prod
+  FullyQualifiedURL:
+    Type: String
+    Description: The URL that users will access the frontend from
+    Default: kmart-dev.anko.com
+  HostedZoneID:
+    Type: 'AWS::Route53::HostedZone::Id'
+    Description: Apex domain for this service
+    Default: Z043721025GXBL4MR5KIJ
+
+Mappings:
+  AWSRegionToAMI:
+    ap-southeast-2:
+      AMI:  ami-0310be5230f55bb3d
+Conditions:
+  CreateDBInDevOrProd: !Or
+    - !Equals [!Ref EnvironmentType, 'dev']
+    - !Equals [!Ref EnvironmentType, 'prod']
+Resources:
+  # Route 53 Record
+  Record:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      HostedZoneId: !Ref HostedZoneID
+      Name: !Ref FullyQualifiedURL
+      Type: A
+      AliasTarget:
+        DNSName: !ImportValue
+          'Fn::Sub': '${BaseStack}-NLB-DNS-${EnvironmentType}'
+        HostedZoneId: !ImportValue
+          'Fn::Sub': '${BaseStack}-NLB-Host-${EnvironmentType}'
+  # Security Groups
+  SGRDSv4:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClientName}-${EnvironmentType}-IPv4'
+      GroupName: !Sub '${ClientName}-${EnvironmentType}-IPv4'
+      GroupDescription: SG for relational databases covering IPv4
+      VpcId: !ImportValue
+        'Fn::Sub': '${BaseStack}-VPC'
+      SecurityGroupIngress:
+        - IpProtocol: TCP
+          CidrIp: 0.0.0.0/0
+          FromPort: 3306
+          ToPort: 3306
+      SecurityGroupEgress:
+        - IpProtocol: TCP
+          CidrIp: 0.0.0.0/0
+          FromPort: 3306
+          ToPort: 3306
+  SGRDSv6:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClientName}-${EnvironmentType}-IPv6'
+      GroupName: !Sub '${ClientName}-${EnvironmentType}-IPv6'
+      GroupDescription: SG for relational databases covering IPv6
+      VpcId: !ImportValue
+        'Fn::Sub': '${BaseStack}-VPC'
+      SecurityGroupIngress:
+        - IpProtocol: TCP
+          CidrIpv6: '::/0'
+          FromPort: 3306
+          ToPort: 3306
+      SecurityGroupEgress:
+        - IpProtocol: TCP
+          CidrIpv6: '::/0'
+          FromPort: 3306
+          ToPort: 3306
+  # IAM Roles and Instance Profiles
+  FirehoseLoggingRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub '${ClientName}-${EnvironmentType}-FirehoseLoggingRole'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - firehose.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:AbortMultipartUpload'
+                  - 's3:GetBucketLocation'
+                  - 's3:GetObject'
+                  - 's3:ListBucket'
+                  - 's3:ListBucketMultipartUploads'
+                  - 's3:PutObject'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ClientName}-${EnvironmentType}-logging'
+                  - !Sub 'arn:aws:s3:::${ClientName}-${EnvironmentType}-logging/*'
+  AutoscalingRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub '${ClientName}-${EnvironmentType}-AutoscalingRole'
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - application-autoscaling.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: service-autoscaling
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'application-autoscaling:*'
+                  - 'cloudwatch:DescribeAlarms'
+                  - 'cloudwatch:PutMetricAlarm'
+                  - 'ecs:DescribeServices'
+                  - 'ecs:UpdateService'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: '*'
+  # S3 Buckets
+  BucketBotLocationMap:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${ClientName}-${EnvironmentType}-bot-location-map'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+  BucketBotRunMap:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${ClientName}-${EnvironmentType}-bot-run-map'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+  BucketReports:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${ClientName}-${EnvironmentType}-reports'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+  BucketCsvBackup:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${ClientName}-${EnvironmentType}-csv-backup'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+  BucketCaseToTaskLogs:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${ClientName}-${EnvironmentType}-case-to-task-logs'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+  BucketLambdaStack:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${ClientName}-${EnvironmentType}-lambda-stack'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+  BucketImages:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${ClientName}-${EnvironmentType}-images'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedOrigins:
+              - "*"
+            AllowedMethods:
+              - HEAD
+              - GET
+  BucketImagesPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref BucketImages
+      PolicyDocument:
+        Version: 2012-10-17
+        Id: AllowPrincipal
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join
+              - ''
+              - - !GetAtt BucketImages.Arn
+                - '/*'
+  BucketLogging:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${ClientName}-${EnvironmentType}-logging'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+  BucketAssets:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${ClientName}-${EnvironmentType}-assets'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+  BucketAssetsPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref BucketAssets
+      PolicyDocument:
+        Version: 2012-10-17
+        Id: AllowPrincipal
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join
+              - ''
+              - - !GetAtt BucketAssets.Arn
+                - '/*'
+  FirehoseLogging:
+    Type: 'AWS::KinesisFirehose::DeliveryStream'
+    Properties:
+      DeliveryStreamName: !Sub '${ClientName}-${EnvironmentType}-logging'
+      DeliveryStreamType: DirectPut
+      S3DestinationConfiguration:
+        BucketARN: !GetAtt BucketLogging.Arn
+        RoleARN: !GetAtt FirehoseLoggingRole.Arn
+        BufferingHints:
+          SizeInMBs: 1
+          IntervalInSeconds: 60
+        CompressionFormat: GZIP
+  # DynamoDB Tables
+  InventoryLog:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: !Sub '${ClientName}-${EnvironmentType}-inventory-log'
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: Date
+        - KeyType: RANGE
+          AttributeName: UUID
+      AttributeDefinitions:
+        - AttributeName: Date
+          AttributeType: S
+        - AttributeName: UUID
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+  TaskLog:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: !Sub '${ClientName}-${EnvironmentType}-task-log'
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: Date
+        - KeyType: RANGE
+          AttributeName: UUID
+      AttributeDefinitions:
+        - AttributeName: Date
+          AttributeType: S
+        - AttributeName: UUID
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+  PerformanceLog:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: !Sub '${ClientName}-${EnvironmentType}-performance-log'
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: LocalDate
+        - KeyType: RANGE
+          AttributeName: UUID
+      AttributeDefinitions:
+        - AttributeName: LocalDate
+          AttributeType: S
+        - AttributeName: UUID
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+  # MySQL Database
+  DB:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceClass: db.t3.small
+      AllocatedStorage: '100'
+      AllowMajorVersionUpgrade: true
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: '30'
+      CopyTagsToSnapshot: true
+      DBInstanceIdentifier: !Sub '${ClientName}-${EnvironmentType}-DB'
+      DBName: ankowhm
+      DeleteAutomatedBackups: false
+      DeletionProtection: false
+      EnableCloudwatchLogsExports:
+        - error
+        - slowquery
+      Engine: mysql
+      EngineVersion: 8.0.23
+      MasterUsername: admin
+      MasterUserPassword: KcougP3rPa0W6dT9I8tJ
+      MonitoringInterval: 0
+      Port: '3306'
+      PreferredMaintenanceWindow: 'sun:16:00-sun:16:30'
+      PreferredBackupWindow: '06:30-07:00'
+      PubliclyAccessible: true
+      StorageEncrypted: false
+      StorageType: gp2
+      DBParameterGroupName: !Ref DBParameterGroup
+      VPCSecurityGroups:
+        - !Ref SGRDSv4
+        - !Ref SGRDSv6
+      DBSubnetGroupName: !Ref DBSubnetGroup
+  DBReadOnlyReplica:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceClass: db.t3.small
+      AllocatedStorage: '100'
+      AllowMajorVersionUpgrade: true
+      AutoMinorVersionUpgrade: true
+      CopyTagsToSnapshot: true
+      DBInstanceIdentifier: !Sub '${ClientName}-${EnvironmentType}-DB-ReadOnly'
+      DeletionProtection: false
+      EnableCloudwatchLogsExports:
+        - error
+        - slowquery
+      Engine: mysql
+      EngineVersion: 8.0.23
+      PubliclyAccessible: true
+      StorageEncrypted: false
+      StorageType: gp2
+      DBParameterGroupName: !Ref DBParameterGroup
+      VPCSecurityGroups:
+        - !Ref SGRDSv4
+        - !Ref SGRDSv6
+      SourceDBInstanceIdentifier: !Ref DB
+  DBParameterGroup:
+    Type: 'AWS::RDS::DBParameterGroup'
+    Properties:
+      Description: Database parameter group
+      Family: mysql8.0
+      Parameters:
+        log_bin_trust_function_creators: 1
+  DBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: Database subnet group for RDS
+      SubnetIds:
+        - !ImportValue
+          'Fn::Sub': '${BaseStack}-Public-Subnet-1'
+        - !ImportValue
+          'Fn::Sub': '${BaseStack}-Public-Subnet-2'
+
+  #Topic for RDS alarms
+  DBAlarmSNSTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      TopicName: !Sub '${ClientName}-${EnvironmentType}-DB-Alarm'
+
+  DBAlarmSNSTopicSubscription:
+    Type: 'AWS::SNS::Subscription'
+    DependsOn: DBAlarmSNSTopic
+    Properties:
+      TopicArn: !Ref DBAlarmSNSTopic
+      Endpoint: engineering@anko.com
+      Protocol: email
+
+  #Alarm for RDS
+  DBHighCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: 1
+      Statistic: Average
+      Threshold: 60
+      AlarmName: !Sub '${ClientName}-${EnvironmentType}-DB-High-CPU'
+      AlarmDescription: Go in Alarm if CPU is more than 60% for 5 minutes
+      Period: 300
+      DatapointsToAlarm: 1
+      AlarmActions:
+        - !Ref DBAlarmSNSTopic
+      Dimensions: 
+        - Name: "DBInstanceIdentifier"
+          Value: !Ref DB
+      Namespace: AWS/RDS
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      MetricName: CPUUtilization
+
+  ReadOnlyDBAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: 1
+      Statistic: Sum
+      Threshold: 0
+      AlarmName: !Sub '${ClientName}-${EnvironmentType}-ReadOnly-DB'
+      AlarmDescription: Go in Alarm if replicalag is less than 0 for 1 minute
+      Period: 60
+      DatapointsToAlarm: 1
+      AlarmActions:
+        - !Ref DBAlarmSNSTopic
+      Dimensions: 
+        - Name: "DBInstanceIdentifier"
+          Value: !Ref DBReadOnlyReplica
+      Namespace: AWS/RDS
+      ComparisonOperator: LessThanThreshold
+      MetricName: ReplicaLag

@@ -1,0 +1,14 @@
+{
+  "name": "wms-api-call",
+  "version": "1.0.0",
+  "description": "WMS API Call",
+  "main": "main.js",
+  "author": "Leif Coleman",
+  "license": "ISC",
+  "dependencies": {},
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/ankous/anko_microservices"
+  }
+}

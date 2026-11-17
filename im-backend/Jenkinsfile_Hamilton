@@ -1,0 +1,202 @@
+#!/usr/bin/env groovy
+String slackChannel = '#dosa-alerts-jenkins'
+pipeline {
+    agent {
+        node {
+            label 'standard'
+        }
+    }
+
+    options {
+        disableConcurrentBuilds() // Prevent name collisions
+    }
+
+    stages {
+        stage('Set Environment Variables Based on Branch') {
+            steps {
+                script {
+                    env.ENVIRONMENT = env.BRANCH_NAME
+                    env.EXTRA_TAG_NAME = ''
+                    env.PR_TARGET_BRANCH_NAME = ''
+                    switch (BRANCH_NAME) {
+                        case 'dev':
+                            env.PR_TARGET_BRANCH_NAME = 'svt'
+                            env.EXTRA_TAG_NAME = 'dev'
+                            break
+                        case 'svt':
+                            env.EXTRA_TAG_NAME = 'svt'
+                            break
+                        case 'uat':
+                            env.EXTRA_TAG_NAME = 'uat'
+                            break
+                        case 'main':
+                            env.ENVIRONMENT = 'prod'
+                            env.EXTRA_TAG_NAME = 'prod'
+                            break
+                        default:
+                            env.ENVIRONMENT = 'dev'
+                            env.EXTRA_TAG_NAME = 'dev'
+                            break
+                    }
+                    env.AWS_REGION = 'ap-southeast-2'
+                    env.CLIENT_NAME = 'kmart-hamilton'
+                    env.ECR_REPO = '350227333798.dkr.ecr.ap-southeast-2.amazonaws.com'
+                    env.TAG_NAME = "${BUILD_TAG}".replaceAll('[^-a-zA-Z0-9]+', '-')
+                    env.ANKOUS_IMAGE_NAME = "dosa-teamconnector-api-repo"
+                    env.ECS_CLUSTER = "${ENVIRONMENT}-dosa-ecs-cluster"
+                }
+            }
+        }
+        stage('Lint') {
+            steps {
+                script {
+                    sh 'docker run --rm  -v "$PWD":/tmp nvuillam/npm-groovy-lint -p "/tmp" -f "**Jenkinsfile*" --no-insight --javaoptions="-XX:-UsePerfData"'
+                }
+            }
+        }
+        stage('Build and Push Docker Image to ECR') {
+            steps {
+                script {
+                    withEnv(['AWS_PROFILE=dosa-shared']) {
+                        echo "Build Number is ${BUILD_NUMBER}, Image name is ${ANKOUS_IMAGE_NAME}, Docker Tag is ${TAG_NAME}"
+                        echo 'Building AnkoUS API Container'
+                        sh """
+                            docker build \
+                                -t ${ECR_REPO}/${ANKOUS_IMAGE_NAME}:${TAG_NAME} \
+                                --no-cache \
+                                .
+                        """
+
+                        echo 'Pushing containers to ECR'
+                        sh """
+                            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
+                            docker push ${ECR_REPO}/${ANKOUS_IMAGE_NAME}:${TAG_NAME}
+                        """
+
+                        if (env.EXTRA_TAG_NAME != '') {
+                            echo "Pushing Extra Tag ${EXTRA_TAG_NAME} to ECR"
+                            sh """
+                                docker tag \
+                                    ${ECR_REPO}/${ANKOUS_IMAGE_NAME}:${TAG_NAME} \
+                                    ${ECR_REPO}/${ANKOUS_IMAGE_NAME}:${EXTRA_TAG_NAME}
+                                aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
+                                docker push ${ECR_REPO}/${ANKOUS_IMAGE_NAME}:${EXTRA_TAG_NAME}
+                            """
+                        }
+                    }
+                }
+            }
+        }
+        stage('Deploy to ECS') {
+            steps {
+                script {
+                    withEnv(["AWS_PROFILE=dosa-${ENVIRONMENT}"]) {
+                        echo 'Get the WMS Service Name'
+                        WMS_SERVICE_NAME = sh (
+                            script: "aws cloudformation describe-stacks --stack-name dosa-${ENVIRONMENT}-ecs-service-wms --query 'Stacks[].Outputs[?OutputKey==`WMSServiceName`].OutputValue' --output text",
+                            returnStdout: true
+                        ).trim()
+                        echo "Deploying to service: ${WMS_SERVICE_NAME} of cluster: ${ECS_CLUSTER}"
+                        sh """
+                            aws ecs update-service \
+                                --cluster ${ECS_CLUSTER} \
+                                --service ${WMS_SERVICE_NAME} \
+                                --force-new-deployment
+                            aws ecs wait services-stable \
+                                --cluster ${ECS_CLUSTER} \
+                                --service ${WMS_SERVICE_NAME} \
+                        """
+                    }
+                }
+            }
+        }
+        stage('DB Migrations') {
+            steps {
+                script {
+                    withEnv(["AWS_PROFILE=dosa-${ENVIRONMENT}"]) {
+                        dir("${env.WORKSPACE}/dbSchema"){
+                            sh (script: """
+                                    set +x
+                                    skeema push ${CLIENT_NAME}-${ENVIRONMENT} --password=\$(aws secretsmanager get-secret-value --region ${AWS_REGION} --secret-id dosa-${ENVIRONMENT}/db-admin --query SecretString --output text | jq .sqlPassword | tr -d '"') --allow-unsafe=true --debug
+                                    set -x
+                                """,
+                                returnStdout: true
+                            )
+                        }
+                        try {
+                            INTERNAL_DOMAIN = sh (
+                                script: "aws ssm get-parameter --name /dosa/route53/private/domain --query 'Parameter.Value' --output text --region ${AWS_REGION}",
+                                returnStdout: true
+                            ).trim()
+                            returnCode = sh (
+                                script: "curl --location --request POST 'https://app.${INTERNAL_DOMAIN}/api/db_sql_files' -s -o /dev/null -w '%{http_code}' -k", //insecure since kmart internal certs aren't accepted.
+                                returnStdout: true
+                            )
+                            echo "${returnCode}"
+
+                            if(returnCode.trim() != '200') {
+                                error('DataBase Seeding Failed')
+                            }
+                        } catch (e) {
+                            echo "${e}"
+                            throw e
+                        }
+                    }
+                }
+            }
+        }
+        stage('Create PR for next Environment') {
+            environment {
+                GITHUB_TOKEN = credentials('dosa-jenkins')
+            }
+            steps {
+                script {
+                    if (PR_TARGET_BRANCH_NAME != '') {
+                        echo "CREATING PR FOR ${PR_TARGET_BRANCH_NAME}"
+                        sh """
+                            curl \
+                                -X POST \
+                                -H "Accept: application/vnd.github.v3+json" \
+                                -H "Authorization: token ${GITHUB_TOKEN_PSW}" \
+                                https://api.github.com/repos/KmartAU/dosa-rfid/pulls \
+                                -d '{ \
+                                    "head": "${BRANCH_NAME}", \
+                                    "base": "${PR_TARGET_BRANCH_NAME}", \
+                                    "title": "Automated PR to ${PR_TARGET_BRANCH_NAME}", \
+                                    "body": "Automated Pull Request based on pipeline ${BUILD_URL}. Please select Merge Strategy of FAST FORWARD (--ff-only)." \
+                                }'
+                        """
+                    }
+                }
+            }
+        }
+    }
+    post {
+        aborted {
+            echo 'aborted'
+        }
+        always {
+            script {
+                echo 'always'
+                cleanWs()
+                sh "docker rmi ${ECR_REPO}/${ANKOUS_IMAGE_NAME}:${TAG_NAME}"
+                if (env.EXTRA_TAG_NAME != '') {
+                    sh "docker rmi ${ECR_REPO}/${ANKOUS_IMAGE_NAME}:${EXTRA_TAG_NAME}"
+                }
+            }
+        }
+        failure {
+            slackSend (color: '#FF0000', channel: "${slackChannel}", message: "Build Failed: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]\n'(${env.BUILD_URL})")
+            echo 'Build Failed'
+        }
+        success {
+            script {
+            //Enabling The Slack Success Build message only for uat and prod
+                if (env.ENVIRONMENT  == 'prod' || env.ENVIRONMENT == 'uat') {
+                    slackSend (color: '#9fe043', channel: "${slackChannel}", message: "Build Success - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)")
+                }
+                echo 'Build was a success'
+            }
+        }
+    }
+}

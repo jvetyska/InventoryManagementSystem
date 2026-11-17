@@ -1,0 +1,11 @@
+{
+  "name": "api-gateway-test-lambda",
+  "version": "1.0.0",
+  "description": "Test for API gateway in VPC",
+  "dependencies": {},
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/ankous/anko_microservices"
+  }
+}

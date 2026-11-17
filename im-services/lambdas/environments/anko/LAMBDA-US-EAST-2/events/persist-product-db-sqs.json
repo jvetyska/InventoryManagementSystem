@@ -1,0 +1,20 @@
+{
+    "Records": [
+        {
+            "messageId": "001a2d02-b094-4a99-9e28-378eae4eac2e",
+            "receiptHandle": "AQEBuDt4XRtN0pysGZ9BaQZSfaJYCGFA1ao9MuyEtP+i2qD+qMqbldOInYp0RTkUhWajBYW6zXxaxQHOHO17NRTeZXQw05FLQmSSHUM/FZIwd4YjFkl6sAhc5YKQe5XGwaWFHuOXfMi9cfnZ/lbc+20jagM1eRXpPUeAIfNXMXvqDqoGfvCPaIcnxYi+1AvP/g4nBNl5/qT0yx/xEPauqEyf/CObh4Kyaoch+t/sPZcnrhUITbRGEc55JyvxNdj0htLvx8l4CPULzfxO+EYPVSu9l2QEHq2DFSAYQgoBgqOyJBrZD3mXwYU6XdtExp/d3TGEhTv5AR2n8w+kbGIGmawiI5SU9kiNonrJmFYYT36XFjAd53uwwi9T7rIcDfgcYD9IUQWKXZwkkfC4EizhAUDJulXaUVfok8MAQ5lURvI4ErM=",
+            "body": '{"ETag":"\\"186ac28ed806f336669823a029407059\\"","Location":"https://product-sync-image-sync-bucket.s3.us-east-2.amazonaws.com/2021-7-28/products-3.json","key":"2021-7-28/products-3.json","Key":"2021-7-28/products-3.json","Bucket":"product-sync-image-sync-bucket"}',
+            "attributes": {
+                "ApproximateReceiveCount": "1",
+                "SentTimestamp": "1523232000000",
+                "SenderId": "123456789012",
+                "ApproximateFirstReceiveTimestamp": "1523232000001"
+            },
+            "messageAttributes": {},
+            "md5OfBody": "f99291483117ee6b60d61365fd73e5eb",
+            "eventSource": "aws:sqs",
+            "eventSourceARN": "arn:aws:sqs:us-east-2:490619545857:persist-product-to-db-queue",
+            "awsRegion": "us-east-2"
+        }
+    ]
+}

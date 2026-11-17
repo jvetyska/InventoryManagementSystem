@@ -1,0 +1,61 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    </head>
+    <body style="margin: 0; padding: 0;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f4f5f6">
+            <tr>
+                <td>
+                    <table align="center" border="0" cellpadding="0" cellspacing="0" width="600">
+                        <tr>
+                            <td align="center" bgcolor="#b0116b" style="padding: 40px 0 30px 0;box-shadow: 3px 3px 2px rgba(0, 0, 0, 0.2);">
+                                <img src ="https://s3-us-west-2.amazonaws.com/anko-images/anko-logo-inverse.png" alt="anko logo" width="125" height="40" style="display: block;">
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 20px 20px 20px 20px; background-color: white; font-size: 16px; font-family:Verdana, Geneva, Tahoma, sans-serif; box-shadow: 3px 3px 2px rgba(0, 0, 0, 0.2);">
+                                <h2>Your order #<%= orderNumber %> is ready for pickup. Please head to the checkout</h2>
+                                <% if (dateHoldUntil) { %>
+                                    <h3>It will be held until <%= dateHoldUntil %> before it's returned</h3>
+                                <% } %>
+                                <table cellspacing="0" cellpadding="0" border="0" width="100%" style="width: 100% !important;">
+                                    <tr>
+                                        <td align="left" valign="top" width="600px" height="1" style="background-color: #f0f0f0; border-collapse:collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; mso-line-height-rule: exactly; line-height: 1px;"><!--[if gte mso 15]>&nbsp;<![endif]--></td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <table align="center" border="0" cellpadding="0" cellspacing="0 5px" width="600" style="background-color: white; border-bottom-left-radius: 3%; border-bottom-right-radius: 3%;">
+                            <tr>
+                                <% for (let item of products) { %><tr>
+                                    <td style="width: 100px; padding-bottom: 10px;">
+                                        <img width="100" src="<%= item.imagePrimary %>" style="display:block">
+                                    </td>
+                                    <td style="padding: 0 15px 0 15px;">
+                                        <a style ="color:#b0116b;" href="https://kiosk.anko.com/#/product/<%= location %>/<%= item.keycode %>"><%= item.onlineName %></a> x <%= item.quantity %>
+                                    </td>
+                                    <td style="text-align: right; padding: 0 15px 0 15px;">
+                                        $<%= (Number(item.sellPriceUsd) * item.quantity).toFixed(2) %>
+                                    </td>
+                                </tr>
+                                <% } %></tr>
+                        </table>
+                        <tr>
+                            <td style="font-family: Verdana, Geneva, Tahoma, sans-serif; font-size: 12px; color: lightslategray;text-align: center; padding: 20px 0 20px 0;">
+                                <p> If you have any questions about your order, please contact anko at <a href="mailto:customer.service@anko.com">customer.service@anko.com</a>.<br>
+                                <br>
+                                Mailing address:<br>
+                                ANKO<br>
+                                19500 Alderwood Mall Pkwy<br>
+                                Lynnwood, WA 98036<br>
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+</html>

@@ -1,0 +1,3 @@
+confluent-kafka
+awslambdaric
+boto3

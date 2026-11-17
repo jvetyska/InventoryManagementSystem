@@ -1,0 +1,12 @@
+{
+    "name": "error-reporting",
+    "version": "1.0.0",
+    "description": "error-reporting lambda attached with tory data processing step function for error reporting",
+    "dependencies": {},
+    "license": "ISC",
+    "repository": {
+      "type": "git",
+      "url": "https://bitbucket.org/ankous/anko_microservices"
+    }
+  }
+  

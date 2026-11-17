@@ -1,0 +1,21 @@
+CREATE TABLE `inventory_snapshot` (
+  `ScheduleID` bigint NOT NULL,
+  `ContainerID` varchar(13) NOT NULL,
+  `Keycode` int NOT NULL,
+  `LocationID` varchar(13) NOT NULL,
+  `Quantity` int DEFAULT NULL,
+  `QuantityExternalTotal` int DEFAULT NULL,
+  `QuantityBackfill` int DEFAULT NULL,
+  `DateSnapshot` datetime DEFAULT NULL,
+  `DateCreated` datetime DEFAULT CURRENT_TIMESTAMP,
+  `QuantityCounted` int DEFAULT NULL,
+  `QuantityAdjusted` int DEFAULT NULL,
+  `AdjustmentReason` varchar(40) DEFAULT NULL,
+  `DateCounted` datetime DEFAULT NULL,
+  `DateCompleted` datetime DEFAULT NULL,
+  `HasRecentManifest` tinyint DEFAULT NULL,
+  `ExternalInventoryAdjust` tinyint DEFAULT NULL,
+  `TaskID` bigint DEFAULT NULL,
+  `IsOverThreshold` tinyint DEFAULT NULL,
+  PRIMARY KEY (`ScheduleID`,`ContainerID`,`Keycode`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

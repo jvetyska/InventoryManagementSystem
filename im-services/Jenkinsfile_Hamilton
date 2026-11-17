@@ -1,0 +1,239 @@
+#!/usr/bin/env groovy
+String slackChannel = '#dosa-alerts-jenkins'
+env.ENVIRONMENT = env.BRANCH_NAME
+if (env.BRANCH_NAME == 'main') {
+  env.ENVIRONMENT = 'prod'
+}
+
+pipeline {
+  agent any
+
+  environment {
+    AWS_DEFAULT_REGION = 'ap-southeast-2'
+    PROJECT_ID = 'rfid'
+    SLACK_NOTIFY_CHANNEL = 'dosa-alerts-jenkins'
+  }
+
+  options {
+    disableConcurrentBuilds() // Prevent name collisions
+  }
+
+  stages {
+    stage('Set Environment Variables Based on Branch') {
+      steps {
+        script {
+          env.ENVIRONMENT = env.BRANCH_NAME
+          env.EXTRA_TAG_NAME = ''
+          env.PR_TARGET_BRANCH_NAME = ''
+          switch (BRANCH_NAME) {
+            case 'dev':
+              env.PR_TARGET_BRANCH_NAME = 'svt'
+              env.EXTRA_TAG_NAME = 'dev'
+              env.RESOLVER_IP = '10.250.14.2'
+              break
+            case 'svt':
+              env.EXTRA_TAG_NAME = 'svt'
+              env.RESOLVER_IP = '10.248.6.2'
+              break
+            case 'uat':
+              env.EXTRA_TAG_NAME = 'uat'
+              env.RESOLVER_IP = '10.248.2.2'
+              break
+            case 'main':
+              env.ENVIRONMENT = 'prod'
+              env.EXTRA_TAG_NAME = 'prod'
+              env.RESOLVER_IP = '10.244.20.2'
+              break
+            default:
+              env.ENVIRONMENT = 'dev'
+              env.RESOLVER_IP = '10.250.14.2'
+              break
+          }
+          env.AWS_REGION = 'ap-southeast-2'
+          env.CLIENT_NAME = 'kmart-hamilton'
+          env.ECR_REPO = '350227333798.dkr.ecr.ap-southeast-2.amazonaws.com'
+          env.TAG_NAME = "${BUILD_TAG}".replaceAll('[^-a-zA-Z0-9]+', '-')
+          env.INTEGRATION_IMAGE_NAME = 'dosa-integration-repo'
+          env.INTEGRATION_NGINX_IMAGE_NAME = 'dosa-integration-nginx-repo'
+          env.ECS_CLUSTER = "${ENVIRONMENT}-dosa-ecs-cluster"
+        }
+      }
+    }
+    stage ('Parallel Linting') {
+      steps {
+        script {
+          parallel (
+            jenkinsfile: {
+              sh """
+                docker run --rm  -v "${WORKSPACE}":/tmp nvuillam/npm-groovy-lint -p "/tmp" -f "**Jenkinsfile_Hamilton" --no-insight --javaoptions="-XX:-UsePerfData" --failon info
+              """
+            }
+          )
+        }
+      }
+    }
+    stage('Build Stock Adjustment Lambda') {
+      environment {
+        DOTNET_CLI_HOME = '/tmp/DOTNET_CLI_HOME'
+        VERSION_SUFFIX = "1.0.${BUILD_NUMBER}"
+        ARTEFACT_FILE = "RFID-lambda-extract-${env.VERSION_SUFFIX}.zip"
+        ARTEFACT_EXTRA = "RFID-lambda-extract-${ENVIRONMENT}.zip"
+        APP_SOURCE_PATH = './lambdas/shared/src/rfid-inventory-stock-adjustment/'
+        APP_OUTPUT_PATH = './Pub'
+        S3_ARTEFACT_BUCKET = "kmart-dosa-${ENVIRONMENT}-lambda-stack"
+      }
+      steps {
+        withEnv(["AWS_PROFILE=dosa-${ENVIRONMENT}"]) {
+          script {
+            docker.image('lambci/lambda:build-dotnetcore3.1').inside('-v "$PWD":/var/task -w /var/task') {
+              sh "rm -rf ${env.APP_OUTPUT_PATH}"
+              sh "dotnet restore ${env.APP_SOURCE_PATH}"
+              sh "dotnet clean ${env.APP_SOURCE_PATH}"
+              sh "dotnet publish ${env.APP_SOURCE_PATH} --configuration Release --framework netcoreapp2.1 /p:GenerateRuntimeConfigurationFiles=true --runtime linux-x64 --self-contained false --output ${env.APP_OUTPUT_PATH} --version-suffix ${env.VERSION_SUFFIX}"
+              sh "cd ${env.APP_OUTPUT_PATH} && zip RFID-lambda-extract-${env.VERSION_SUFFIX}.zip ./*"
+            }
+            // We upload both a build number for historical purposes and an Environment one for deploying.
+            sh "aws s3 cp ${APP_OUTPUT_PATH}/${ARTEFACT_FILE} s3://${S3_ARTEFACT_BUCKET}/${ARTEFACT_FILE}"
+            sh "aws s3 cp ${APP_OUTPUT_PATH}/${ARTEFACT_FILE} s3://${S3_ARTEFACT_BUCKET}/${ARTEFACT_EXTRA}"
+          }
+        }
+      }
+    }
+    stage('Deploy lambda stack') {
+      steps {
+        withEnv(["AWS_PROFILE=dosa-${ENVIRONMENT}"]) {
+          sh """
+            make build-lambda ENVIRONMENT=${ENVIRONMENT}
+          """
+        }
+      }
+    }
+    stage('Build ECR Image') {
+      steps {
+        script {
+          if (env.BRANCH_NAME == 'main') {
+            echo "Hello from ${env.ENVIRONMENT}"
+            slackSend color: 'good', channel: env.SLACK_NOTIFY_CHANNEL, message: "@here: :vertical_traffic_light: <${env.JOB_DISPLAY_URL}|${env.JOB_NAME} #${env.BUILD_NUMBER}> Deploy to ${env.ENVIRONMENT}?"
+            timeout(time: 3, unit: 'HOURS') {
+              input message: "Deploy to ${env.ENVIRONMENT}?"
+            }
+          }
+          withEnv(['AWS_PROFILE=dosa-shared']) {
+            dir("${env.WORKSPACE}/nginx-ecs-kmart") {
+              echo "Build Number is ${BUILD_NUMBER}, Image name is ${INTEGRATION_NGINX_IMAGE_NAME}, Docker Tag is ${TAG_NAME}"
+              echo 'Making Nginx Config subsitutions'
+              sh """
+                sed -i 's|resolver.*;\$|resolver ${RESOLVER_IP};|g' default.conf
+                sed -i 's|http://integration-slave:8080|http://localhost:8080|g' default.conf
+              """
+              echo 'Building Integration Nginx Container'
+              sh """
+                docker build \
+                  -t ${ECR_REPO}/${INTEGRATION_NGINX_IMAGE_NAME}:${TAG_NAME} \
+                  .
+              """
+            }
+            dir("${env.WORKSPACE}/kmart-integrations") {
+              echo "Build Number is ${BUILD_NUMBER}, Image name is ${INTEGRATION_IMAGE_NAME}, Docker Tag is ${TAG_NAME}"
+              echo 'Building Integration Container'
+              sh """
+                docker build \
+                  -t ${ECR_REPO}/${INTEGRATION_IMAGE_NAME}:${TAG_NAME} \
+                  --build-arg buildENV=${env.ENVIRONMENT} \
+                  .
+              """
+            }
+            echo 'Pushing containers to ECR'
+            sh """
+              aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
+              docker push ${ECR_REPO}/${INTEGRATION_NGINX_IMAGE_NAME}:${TAG_NAME}
+              docker push ${ECR_REPO}/${INTEGRATION_IMAGE_NAME}:${TAG_NAME}
+            """
+
+            if (env.EXTRA_TAG_NAME != '') {
+              echo "Pushing Extra Tag ${EXTRA_TAG_NAME} to ECR"
+              sh """
+                docker tag \
+                  ${ECR_REPO}/${INTEGRATION_NGINX_IMAGE_NAME}:${TAG_NAME} \
+                  ${ECR_REPO}/${INTEGRATION_NGINX_IMAGE_NAME}:${EXTRA_TAG_NAME}
+                docker tag \
+                  ${ECR_REPO}/${INTEGRATION_IMAGE_NAME}:${TAG_NAME} \
+                  ${ECR_REPO}/${INTEGRATION_IMAGE_NAME}:${EXTRA_TAG_NAME}
+                aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
+                docker push ${ECR_REPO}/${INTEGRATION_NGINX_IMAGE_NAME}:${EXTRA_TAG_NAME}
+                docker push ${ECR_REPO}/${INTEGRATION_IMAGE_NAME}:${EXTRA_TAG_NAME}
+              """
+            }
+          }
+        }
+      }
+    }
+    stage('Deploy to ECS') {
+      steps {
+        script {
+          withEnv(["AWS_PROFILE=dosa-${ENVIRONMENT}"]) {
+            echo 'Get the Integration Service Name'
+            INTEGRATION_SERVICE_NAME = sh (
+              script: "aws cloudformation describe-stacks --stack-name dosa-${ENVIRONMENT}-ecs-service-integration --query 'Stacks[].Outputs[?OutputKey==`IntegrationServiceName`].OutputValue' --output text",
+              returnStdout: true
+            ).trim()
+            echo "Deploying to service: ${INTEGRATION_SERVICE_NAME} of cluster: ${ECS_CLUSTER}"
+            sh """
+              aws ecs update-service \
+                --cluster ${ECS_CLUSTER} \
+                --service ${INTEGRATION_SERVICE_NAME} \
+                --force-new-deployment
+              aws ecs wait services-stable \
+                --cluster ${ECS_CLUSTER} \
+                --service ${INTEGRATION_SERVICE_NAME} \
+            """
+          }
+        }
+      }
+    }
+    stage('Create PR for next Environment') {
+      environment {
+        GITHUB_TOKEN = credentials('dosa-jenkins')
+      }
+      steps {
+        script {
+          if (PR_TARGET_BRANCH_NAME != '') {
+            echo "CREATING PR FOR ${PR_TARGET_BRANCH_NAME}"
+            sh """
+              curl \
+                -X POST \
+                -H "Accept: application/vnd.github.v3+json" \
+                -H "Authorization: token ${GITHUB_TOKEN_PSW}" \
+                https://api.github.com/repos/KmartAU/dosa-microservices/pulls \
+                -d '{ \
+                    "head": "${BRANCH_NAME}", \
+                    "base": "${PR_TARGET_BRANCH_NAME}", \
+                    "title": "Automated PR to ${PR_TARGET_BRANCH_NAME}", \
+                    "body": "Automated Pull Request based on pipeline ${BUILD_URL}. Please select Merge Strategy of FAST FORWARD (--ff-only)." \
+                }'
+            """
+          }
+        }
+      }
+    }
+  }
+  post {
+    always {
+      echo 'Cleaning up workspace'
+      // deleteDir()
+    }
+    failure {
+      slackSend (color: '#FF0000', channel: "${slackChannel}", message: "Build Failed: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]\n'(${env.BUILD_URL})")
+      echo 'Build Failed'
+    }
+    success {
+      script {
+      //Enabling The Slack Success Build message only for uat and prod
+        if (env.ENVIRONMENT  == 'prod' || env.ENVIRONMENT == 'uat') {
+          slackSend (color: '#9fe043', channel: "${slackChannel}", message: "Build Success - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)")
+        }
+        echo 'Build was a success'
+      }
+  }
+}
+}

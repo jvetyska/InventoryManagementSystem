@@ -1,0 +1,9 @@
+BaseStack=kmart-stack
+ClientName=kmart
+EnvironmentType=dev
+KmartRfidSohS3Bucket=kmartau-rfid-dev-soh
+SophiaUploadS3Bucket=kmartau-sophia-rfid-datasvcsdev
+WmsUrl=kmart-dev.anko.com
+ApiGateWayVpceEndpoint=vpce-05fa02979c8ebf2b2
+VpcEndpoint=vpc-0c24d58ba15174c9f
+LogLevel=debug

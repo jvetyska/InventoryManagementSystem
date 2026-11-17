@@ -1,0 +1,19 @@
+{
+    "Records": [
+      {
+        "body": {
+          "Input": {
+            "status": "RunDataReady",
+            "inventoryName": "2021-08-20_15-12-00",
+            "inventoryBotID": 26,
+            "mapAreaName": "foh_taskconfig_torylab",
+            "location": "engineeringlab",
+            "executionName": "26_2021-08-22_12-59-00_RunDataReady",
+            "isUpdateInventory": true,
+            "locationID": "1001-STR"
+          },
+          "TaskToken": "abcd"
+        }
+      }
+    ]
+}

@@ -1,0 +1,17 @@
+# Filename: Dockerfile
+FROM node:12-buster
+
+# install git
+RUN apt-get update
+RUN apt-get install -y git
+RUN apt-get install -y vim
+
+WORKDIR /wmsapi
+
+COPY ../../package*.json ./
+
+RUN npm install -y
+
+COPY . .
+
+CMD ["npm", "run", "localDev"]

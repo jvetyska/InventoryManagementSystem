@@ -1,0 +1,24 @@
+branch-defaults:
+  logging-branch:
+    environment: anko-microwarehouse-prod-2
+  master:
+    environment: anko-aws-api-dev
+  PRODUCTION:
+    environment: anko-aws-api-prod
+environment-defaults:
+  anko-aws-api-prod:
+    branch: PRODUCTION
+    repository: null
+global:
+  application_name: anko
+  default_ec2_keyname: anko-microwarehouse-qa
+  default_platform: arn:aws:elasticbeanstalk:us-east-2::platform/Node.js running on
+    64bit Amazon Linux/4.8.2
+  default_region: us-east-2
+  include_git_submodules: true
+  instance_profile: null
+  platform_name: null
+  platform_version: null
+  profile: null
+  sc: git
+  workspace_type: Application

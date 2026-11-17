@@ -1,0 +1,11 @@
+{
+  "name": "generate-backfill-tasks",
+  "version": "1.0.0",
+  "description": "generate-backfill-tasks",
+  "dependencies": {},
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/ankous/anko_microservices"
+  }
+}

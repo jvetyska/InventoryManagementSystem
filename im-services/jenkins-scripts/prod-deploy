@@ -1,0 +1,106 @@
+#!/usr/bin/env groovy
+
+pipeline {
+    agent any
+    tools {nodejs "Node12LTS"}
+    environment {
+        AWS_REGION = "ap-southeast-2"
+        BUILD_NUMBER = "${env.BUILD_NUMBER}"
+        ENVIRONMENT = "prod"
+        CLIENT_NAME = "kmart"
+        AWS_CREDENTIAL = "pipeline-access-anko-kmart-prod"
+        KMART_BRANCH_TO_PUSH = "master"
+        BITBUCKET_BRANCH = "PROD"
+        GITHUB_SYNC_BRANCH = "main"
+        GITHUB_SYNC_USER = credentials('kmart-github-sync-username')
+        GITHUB_SYNC_TOKEN = credentials('kmart-github-sync')
+    }
+    
+    options {
+        disableConcurrentBuilds() // Prevent name collisions
+    }
+
+    stages { 
+        stage('Git') {
+            steps {
+                slackSend (color: '#FFFF00', message:" :hammer: Stage: Git Pull")
+
+                echo "Pulling Repo"
+
+                git(
+                    url: 'git@bitbucket.org:ankous/anko_microservices.git',
+                    credentialsId: 'BitbucketSSJ',
+                    branch: "${BITBUCKET_BRANCH}"
+                )
+
+
+                script {
+                    // get the commit hash from log
+                    env.GIT_COMMIT_HASH_ID = sh (script: "git log -n 1 --pretty=format:'%H'", returnStdout: true).trim()
+                    echo "${env.GIT_COMMIT_HASH_ID}"
+                    sh "git status"
+                    sh "git log -n 2"
+                }
+            }
+        }
+        stage('Deploy Lambda Stack') {
+            steps {
+                script {
+                    withAWS(credentials: "${AWS_CREDENTIAL}") {
+                        echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> DEPLOYING AP SOUTHEAST 2 STACK >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+                        sh "./lambdas/environments/kmart-external/AP-SOUTHEAST-2/deployLambdaKmart.sh -e ${ENVIRONMENT}"
+                        echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> DEPLOYMENT DONE AP SOUTHEAST 2 STACK >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+                    }
+                    
+                }
+            }
+        }
+        stage('Push to Github Repo') {
+            steps {
+                slackSend (color: '#FFFF00', message: " :hammer: Stage: Push to Github Repo")
+                script {
+                    echo "Pushing to kmart repo"
+                    sh "git status"
+                    sh """
+                        git remote add ghmonorepoorigin git@github.com-monorepo:KmartAU/rfid-monorepo.git
+                        git remote -v
+                        git push -f ghmonorepoorigin ${BITBUCKET_BRANCH}:${KMART_BRANCH_TO_PUSH}
+                        git remote rm ghmonorepoorigin
+                        git remote -v
+                    """
+                }
+            }
+        }
+        stage('Sync Github Dosa-microservices repo') {
+            steps {
+                slackSend (color: '#FFFF00', message: " :hammer: Stage: Sync to Github Repo")
+                script {
+                    echo "Syncing to kmart repo"
+                    sh "git status"
+                    sh """
+                        git remote add githubmicroservicesyncmain https://${GITHUB_SYNC_USER}:${GITHUB_SYNC_TOKEN}@github.com/KmartAU/dosa-microservices.git
+                        git remote -v
+                        git push -f githubmicroservicesyncmain ${BITBUCKET_BRANCH}:${GITHUB_SYNC_BRANCH}
+                        git remote rm githubmicroservicesyncmain
+                        git remote -v
+                    """
+                }
+            }
+        }
+    }
+    post {
+        failure { 
+            echo "error"
+        }
+        success { 
+            echo "success"
+        }
+        aborted {
+            echo "aborted" 
+        }
+        always {
+            echo 'always'
+            cleanWs()
+        }
+    }
+}

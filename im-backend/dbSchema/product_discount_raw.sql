@@ -1,0 +1,22 @@
+CREATE TABLE `product_discount_raw` (
+  `ID` int NOT NULL AUTO_INCREMENT,
+  `LocationID` varchar(45) DEFAULT NULL,
+  `DepartmentID` varchar(3) DEFAULT NULL,
+  `Class_Name` varchar(55) DEFAULT NULL,
+  `Sub_Class_Name` varchar(55) DEFAULT NULL,
+  `Keycode` int DEFAULT NULL,
+  `DiscountName` varchar(100) DEFAULT NULL,
+  `DiscountPrice` decimal(5,2) DEFAULT NULL,
+  `DiscountPercent` decimal(5,2) DEFAULT NULL,
+  `DateStart` date DEFAULT NULL,
+  `DateEnd` date DEFAULT NULL,
+  `PDU` int DEFAULT NULL,
+  `Percent_Discount` decimal(5,2) DEFAULT NULL,
+  `Discount_Name` varchar(100) DEFAULT 'ANKO Discount',
+  `Discount_Amount` decimal(5,2) DEFAULT NULL,
+  `isSaleFinal` tinyint DEFAULT '0',
+  `StyleID` int DEFAULT NULL,
+  `SecondaryColour` varchar(25) DEFAULT NULL,
+  PRIMARY KEY (`ID`),
+  KEY `idx_Keycode` (`Keycode`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

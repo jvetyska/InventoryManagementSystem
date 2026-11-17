@@ -1,0 +1,227 @@
+{
+    "dev" : {
+        "region": "us-east-2",
+        "api_base": "https://api-dev.anko.com/api/",
+        "base_url": "https://api-dev.anko.com",
+        "secret_name": "AnkoMicroserviceSecrets",
+        "varianceThresholdCSV": 1,
+        "timezone": "US/Pacific",
+        "sendEmailInsteadOfS3Upload": true,
+        "bucket": {
+            "logging": "anko-whm-logging",
+            "wms_assets": "bot-location-map",
+            "bot_run_map": "bot-run-map",
+            "productSync": "product-sync-image-sync-bucket",
+            "StoreFilesWithDomain": false,
+            "wms_assets_url": "https://bot-location-map.s3.amazonaws.com",
+            "bot_run_map_url": "https://bot-run-map.s3.amazonaws.com"
+        },
+        "dynamodb": {
+            "inventory_log" : "inventory_log_dev",
+            "performance_log" : "performance_log_dev",
+            "task_log" : "task_log_dev"
+        }
+    },
+    "anko" : {
+        "region": "us-east-2",
+        "api_base": "https://api.anko.com/api/",
+        "base_url": "https://api.anko.com",
+        "secret_name": "AnkoMicroserviceSecrets",
+        "varianceThresholdCSV": 1,
+        "timezone": "US/Pacific",
+        "sendEmailInsteadOfS3Upload": true,
+        "bucket": {
+            "logging": "anko-whm-logging",
+            "productSync": "product-sync-image-sync-bucket",
+            "wms_assets": "bot-location-map",
+            "bot_run_map": "bot-run-map",
+            "StoreFilesWithDomain": false,
+            "wms_assets_url": "https://bot-location-map.s3.amazonaws.com",
+            "bot_run_map_url": "https://bot-run-map.s3.amazonaws.com"
+        },
+        "dynamodb": {
+            "inventory_log" : "inventory_log",
+            "performance_log" : "performance_log",
+            "task_log" : "task_log"
+        }
+    },
+    "kmart-dev" : {
+        "imagePrimaryColumnURL": "https://kmart-dev.anko.com/wms/assets/images/product",
+        "region": "ap-southeast-2",
+        "bucket": {
+            "logging": "kmart-dev-logging",
+            "imageSync": "kmart-dev-images",
+            "productSync": "kmart-dosa-dev-assets",
+            "wms_assets": "kmart-dev-images",
+            "bot_run_map": "kmart-dev-images",
+            "StoreFilesWithDomain": false,
+            "wms_assets_url": "/wms/assets/images",
+            "bot_run_map_url": "/wms/assets/images"
+        },
+        "maxKeys": 1000,
+        "api_base": "https://kmart-dev.anko.com/api/",
+        "base_url": "https://kmart-dev.anko.com",
+        "secret_name": "kmart-dev-secret",
+        "varianceThresholdCSV": 1,
+        "timezone": "Australia/Victoria",
+        "dynamodb": {
+            "inventory_log" : "kmart-dev-inventory-log",
+            "performance_log" : "kmart-dev-performance-log",
+            "task_log" : "kmart-dev-task-log"
+        }
+    },
+    "kmart-uat" : { 
+        "imagePrimaryColumnURL": "https://kmart-uat.anko.com/wms/assets/images/product",
+        "region": "ap-southeast-2",
+        "bucket": {
+            "logging": "kmart-uat-logging",
+            "imageSync": "kmart-uat-images",
+            "productSync": "kmart-dosa-dev-assets",
+            "wms_assets": "kmart-uat-images",
+            "bot_run_map": "kmart-uat-images",
+            "StoreFilesWithDomain": false,
+            "wms_assets_url": "/wms/assets/images",
+            "bot_run_map_url": "/wms/assets/images"
+        },
+        "maxKeys": 1000,
+        "api_base": "https://kmart-uat.anko.com/api/",
+        "base_url": "https://kmart-uat.anko.com",
+        "secret_name": "kmart-uat-secret",
+        "varianceThresholdCSV": 1,
+        "timezone": "Australia/Victoria",
+        "dynamodb": {
+            "inventory_log" : "kmart-uat-inventory-log",
+            "performance_log" : "kmart-uat-performance-log",
+            "task_log" : "kmart-uat-task-log"
+        }
+    },
+    "kmart-prod" : {
+        "imagePrimaryColumnURL": "https://kmart.anko.com/wms/assets/images/product",
+        "region": "ap-southeast-2",
+        "bucket": {
+            "logging": "kmart-prod-logging",
+            "imageSync": "kmart-prod-images",
+            "productSync": "kmart-dosa-dev-assets",
+            "wms_assets": "kmart-prod-images",
+            "bot_run_map": "kmart-prod-images",
+            "StoreFilesWithDomain": false,
+            "wms_assets_url": "/wms/assets/images",
+            "bot_run_map_url": "/wms/assets/images"
+        },
+        "maxKeys": 1000,
+        "api_base": "https://kmart.anko.com/api/",
+        "base_url": "https://kmart.anko.com",
+        "secret_name": "kmart-prod-secret",
+        "varianceThresholdCSV": 1,
+        "timezone": "Australia/Victoria",
+        "dynamodb": {
+            "inventory_log" : "kmart-prod-inventory-log",
+            "performance_log" : "kmart-prod-performance-log",
+            "task_log" : "kmart-prod-task-log"
+        }
+    },
+    "kmart-hamilton-dev" : {
+        "imagePrimaryColumnURL": "/wms/assets/images/product",
+        "region": "ap-southeast-2",
+        "bucket": {
+            "logging": "kmart-dosa-dev-logging",
+            "imageSync": "kmart-dosa-dev-images",
+            "productSync": "kmart-dosa-dev-assets",
+            "wms_assets": "kmart-dosa-dev-images",
+            "bot_run_map": "kmart-dosa-dev-images",
+            "StoreFilesWithDomain": false,
+            "wms_assets_url": "/wms/assets/images",
+            "bot_run_map_url": "/wms/assets/images"
+        },
+        "maxKeys": 1000,
+        "api_base": "https://app.dev.dosadev.a-kmtkmg.net/api/",
+        "base_url": "https://app.dev.dosadev.a-kmtkmg.net",
+        "secret_name": "kmart-dev-secret",
+        "varianceThresholdCSV": 1,
+        "timezone": "Australia/Victoria",
+        "hamiltonEnvSslCert": true,
+        "dynamodb": {
+            "inventory_log" : "dev-ap-southeast-2-dosa-inventory-log",
+            "performance_log" : "dev-ap-southeast-2-dosa-performance-log",
+            "task_log" : "dev-ap-southeast-2-kmart-dosa-task-log"
+        }
+    },
+    "kmart-hamilton-svt" : {
+        "imagePrimaryColumnURL": "/wms/assets/images/product",
+        "region": "ap-southeast-2",
+        "bucket": {
+            "logging": "kmart-dosa-svt-logging",
+            "imageSync": "kmart-dosa-svt-images",
+            "productSync": "kmart-dosa-svt-assets",
+            "wms_assets": "kmart-dosa-svt-images",
+            "bot_run_map": "kmart-dosa-svt-images",
+            "StoreFilesWithDomain": false,
+            "wms_assets_url": "/wms/assets/images",
+            "bot_run_map_url": "/wms/assets/images"
+        },
+        "maxKeys": 1000,
+        "api_base": "https://app.nonprod.dosasvt.a-kmtkmg.net/api/",
+        "base_url": "https://app.nonprod.dosasvt.a-kmtkmg.net",
+        "secret_name": "kmart-svt-secret",
+        "varianceThresholdCSV": 1,
+        "timezone": "Australia/Victoria",
+        "hamiltonEnvSslCert": true,
+        "dynamodb": {
+            "inventory_log" : "svt-ap-southeast-2-dosa-inventory-log",
+            "performance_log" : "svt-ap-southeast-2-dosa-performance-log",
+            "task_log" : "svt-ap-southeast-2-kmart-dosa-task-log"
+        }
+    },
+    "kmart-hamilton-uat" : {
+        "imagePrimaryColumnURL": "/wms/assets/images/product",
+        "region": "ap-southeast-2",
+        "bucket": {
+            "logging": "kmart-dosa-uat-logging",
+            "imageSync": "kmart-dosa-uat-images",
+            "productSync": "kmart-dosa-uat-assets",
+            "wms_assets": "kmart-dosa-uat-images",
+            "bot_run_map": "kmart-dosa-uat-images",
+            "StoreFilesWithDomain": false,
+            "wms_assets_url": "/wms/assets/images",
+            "bot_run_map_url": "/wms/assets/images"
+        },
+        "maxKeys": 1000,
+        "api_base": "https://app.nonprod.dosauat.a-kmtkmg.net/api/",
+        "base_url": "https://app.nonprod.dosauat.a-kmtkmg.net",
+        "secret_name": "kmart-uat-secret",
+        "varianceThresholdCSV": 1,
+        "timezone": "Australia/Victoria",
+        "hamiltonEnvSslCert": true,
+        "dynamodb": {
+            "inventory_log" : "uat-ap-southeast-2-dosa-inventory-log",
+            "performance_log" : "uat-ap-southeast-2-dosa-performance-log",
+            "task_log" : "uat-ap-southeast-2-kmart-dosa-task-log"
+        }
+    },
+    "kmart-hamilton-prod" : {
+        "imagePrimaryColumnURL": "/wms/assets/images/product",
+        "region": "ap-southeast-2",
+        "bucket": {
+            "logging": "kmart-dosa-prod-logging",
+            "imageSync": "kmart-dosa-prod-images",
+            "productSync": "kmart-dosa-prod-assets",
+            "wms_assets": "kmart-dosa-prod-images",
+            "bot_run_map": "kmart-dosa-prod-images",
+            "StoreFilesWithDomain": false,
+            "wms_assets_url": "/wms/assets/images",
+            "bot_run_map_url": "/wms/assets/images"
+        },
+        "maxKeys": 1000,
+        "api_base": "https://app.prod.dosaprod.a-kmtkmg.net/api/",
+        "base_url": "https://app.prod.dosaprod.a-kmtkmg.net",
+        "secret_name": "kmart-prod-secret",
+        "varianceThresholdCSV": 1,
+        "timezone": "Australia/Victoria",
+        "hamiltonEnvSslCert": true,
+        "dynamodb": {
+            "inventory_log" : "prod-ap-southeast-2-dosa-inventory-log",
+            "performance_log" : "prod-ap-southeast-2-dosa-performance-log",
+            "task_log" : "prod-ap-southeast-2-kmart-dosa-task-log"
+        }
+    }
+}

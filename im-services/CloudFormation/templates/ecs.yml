@@ -1,0 +1,156 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  IAMStack:
+    Type: String
+  TaskDefinition:
+    Type: String
+  ContainerName1:
+    Type: String
+    Default: rfid-app1
+    Description: nginx web server container
+  ContainerName2:
+    Type: String
+    Default: integration-slave
+    Description: nodejs integration service container          
+  ProxyUrl:
+    Type: String
+    Default: http://proxy.int.sharedsvc.a-sharedinfra.net:8080  
+  NoProxy:
+    Type: String
+  ContainerMemory:
+    Type: Number
+  ContainerPort:
+    Type: Number
+  AppImage:
+    Type: String
+    Description: nginx web server image
+  SlaveImage:
+    Type: String
+    Description: kmart integration service image
+  EC2Stack:
+    Type: String  
+  DesiredCount:
+    Type: Number
+  ELBStack:
+    Type: String       
+  Deploy:
+    Type: String
+    Default: Yes
+  LogSize:
+    Type: String
+  LogFileMax:
+    Type: String
+  MaximumPercent:
+    Type: Number
+  MinimumHealthyPercent:
+    Type: Number
+  DeploymentType:
+    Type: String
+    Default: ECS
+  NginxCpu:
+    Type: Number
+  IntegrationCpu:
+    Type: Number
+  EnableECSRollingUpdate:
+    Type: String            
+        
+Conditions:
+  IsDeploy: !Equals [!Ref Deploy, Yes]
+  AutoScaleRollingUpdate: !Equals [!Ref EnableECSRollingUpdate, Yes]
+Resources:     
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref TaskDefinition
+      TaskRoleArn: 
+        Fn::ImportValue: !Sub ${IAMStack}::ecstaskrole
+      ContainerDefinitions:
+        - Name: !Ref ContainerName1 #nginx server
+          Memory: !Ref ContainerMemory
+          Image: !Ref AppImage
+          Cpu: !Ref NginxCpu
+          PortMappings:
+            - HostPort: 0
+              ContainerPort: !Ref ContainerPort
+          Links: [!Ref ContainerName2]    
+          Environment:
+            - Name: HTTP_PROXY
+              Value: !Ref ProxyUrl
+            - Name: HTTPS_PROXY
+              Value: !Ref ProxyUrl
+            - Name: NO_PROXY
+              Value: !Ref NoProxy
+            - Name: http_proxy
+              Value: !Ref ProxyUrl
+            - Name: https_proxy
+              Value: !Ref ProxyUrl
+            - Name: no_proxy
+              Value: !Ref NoProxy
+          LogConfiguration:
+            LogDriver: json-file
+            Options:
+              max-size: !Ref LogSize
+              max-file: !Ref LogFileMax    
+        - Name: !Ref ContainerName2 #kmart integration service
+          Memory: !Ref ContainerMemory
+          Image: !Ref SlaveImage
+          Cpu: !Ref IntegrationCpu
+          Environment:
+            - Name: HTTP_PROXY
+              Value: !Ref ProxyUrl
+            - Name: HTTPS_PROXY
+              Value: !Ref ProxyUrl
+            - Name: NO_PROXY
+              Value: !Ref NoProxy
+            - Name: http_proxy
+              Value: !Ref ProxyUrl
+            - Name: https_proxy
+              Value: !Ref ProxyUrl
+            - Name: no_proxy
+              Value: !Ref NoProxy
+          LogConfiguration:
+            LogDriver: json-file
+            Options:
+              max-size: !Ref LogSize
+              max-file: !Ref LogFileMax         
+  
+  ECSService:
+    Condition: IsDeploy
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Fn::ImportValue: !Sub ${EC2Stack}::ECSCLUSTER
+      DeploymentController:
+        !If
+        - AutoScaleRollingUpdate
+        -
+          Type: !Ref DeploymentType
+        - !Ref 'AWS::NoValue'
+      DeploymentConfiguration:
+        MaximumPercent: !Ref MaximumPercent
+        MinimumHealthyPercent: !Ref MinimumHealthyPercent
+      DesiredCount: !Ref DesiredCount
+      TaskDefinition: !Ref ECSTaskDefinition
+      PlacementStrategies:
+        - Field: instanceId
+          Type: spread
+      LoadBalancers:
+        - ContainerName: !Ref ContainerName1
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn:
+            Fn::ImportValue: !Sub ${ELBStack}::TargetGroup1
+  
+Outputs:
+  Version:
+    Description: "nginx container version deployed"
+    Value: !Ref AppImage
+  Version2:
+    Description: "integration slave container version deployed"
+    Value: !Ref SlaveImage
+  ECSService:
+    Description: NAme of the ECS service
+    Value: !GetAtt ECSService.Name
+    Export:
+      Name: !Sub ${AWS::StackName}::ToryECSService    
+            

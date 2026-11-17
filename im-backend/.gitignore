@@ -1,0 +1,22 @@
+node_modules/
+package-lock.json
+npm-debug.log
+tests/CucumberReport/**/*
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# compiled output
+dist
+tmp
+out-tsc
+
+# System Files
+.DS_Store
+Thumbs.db
+
+.idea

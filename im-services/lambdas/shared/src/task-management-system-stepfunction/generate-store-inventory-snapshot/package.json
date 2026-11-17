@@ -1,0 +1,11 @@
+{
+  "name": "generate-store-inventory-snapshot",
+  "version": "1.0.0",
+  "description": "generate-store-inventory-snapshot",
+  "dependencies": {},
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/ankous/anko_microservices"
+  }
+}

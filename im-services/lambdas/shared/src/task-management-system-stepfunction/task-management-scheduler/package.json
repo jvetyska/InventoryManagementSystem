@@ -1,0 +1,11 @@
+{
+  "name": "task-management-scheduler",
+  "version": "1.0.0",
+  "description": "task-management-scheduler",
+  "dependencies": {},
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/ankous/anko_microservices"
+  }
+}

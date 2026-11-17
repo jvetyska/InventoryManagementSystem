@@ -1,0 +1,11 @@
+{
+  "name": "generate-rfid-exception-tasks",
+  "version": "1.0.0",
+  "description": "generate-rfid-exception-tasks",
+  "dependencies": {},
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/ankous/anko_microservices"
+  }
+}

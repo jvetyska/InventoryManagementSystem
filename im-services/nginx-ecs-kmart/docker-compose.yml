@@ -1,0 +1,17 @@
+version: '3'
+services:
+    proxy:
+        build: .
+        image: nginx-ecs-kmart
+        container_name: nginx-proxy-kmart
+        networks:
+            - ankous_default
+        ports:
+            - 80:80
+            - 443:443
+        volumes:
+            - /tmp:/tmp
+networks:
+    ankous_default:
+        external:
+            name: ankous_default

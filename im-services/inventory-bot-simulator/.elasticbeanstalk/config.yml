@@ -1,0 +1,20 @@
+branch-defaults:
+  default:
+    environment: InventoryBotSimulator-envi
+environment-defaults:
+  InventoryBotSimulator-envi:
+    branch: null
+    repository: null
+global:
+  application_name: inventory_bot_simulator
+  default_ec2_keyname: anko-engineering-access
+  default_platform: arn:aws:elasticbeanstalk:us-east-2::platform/Node.js 12 running
+    on 64bit Amazon Linux 2/5.1.0
+  default_region: us-east-2
+  include_git_submodules: true
+  instance_profile: null
+  platform_name: null
+  platform_version: null
+  profile: null
+  sc: null
+  workspace_type: Application

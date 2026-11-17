@@ -1,0 +1,9 @@
+BaseStack=kmart-stack
+ClientName=kmart
+EnvironmentType=uat
+KmartRfidSohS3Bucket=kmartau-rfid-nonprod-soh
+SophiaUploadS3Bucket=kmartau-sophia-rfid-datasvcsprod
+WmsUrl=kmart-uat.anko.com
+ApiGateWayVpceEndpoint=vpce-05fa02979c8ebf2b2
+VpcEndpoint=vpc-0c24d58ba15174c9f
+LogLevel=info

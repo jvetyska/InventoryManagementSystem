@@ -1,0 +1,7 @@
+CREATE TABLE `user_locations` (
+  `ID` int NOT NULL AUTO_INCREMENT,
+  `UserID` int NOT NULL,
+  `Location` varchar(13) NOT NULL,
+  `DateUpdated` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`ID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

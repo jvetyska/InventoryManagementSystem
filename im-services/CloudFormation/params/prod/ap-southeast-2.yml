@@ -1,0 +1,24 @@
+---
+Environment: 'prod'
+ProxyPort: '8080'
+NoProxy: 'localhost,.kaccess.net,.kaccess.com.au,.kmtltd.net.au,.compute.internal,.a-sharedinfra.net,s3.ap-southeast-2.amazonaws.com,169.254.169.254,git.kaccess.net,/var/run/docker.sock,169.254.170.2'
+StackSuffix: '{{ cfn_stack_suffix }}'
+ProjectId: '{{ cfn_project_id }}'
+IAMStack: '{{ cfn_iam_stack }}'
+ELBStack: '{{ cfn_elb_stack }}'
+EC2Stack: '{{ cfn_ec2_stack }}'
+TaskDefinition: '{{ cfn_task_def }}'
+ECSClusterSizeAUTH: 1
+AppImage: '{{ cfn_nginx_image }}'
+SlaveImage: '{{ cfn_slave_image }}'
+DesiredCount: 1
+ContainerMemory: 512
+ContainerPort: 80
+LogSize: '10m'
+LogFileMax: '10'
+ContainerName1: 'rfid-tory-nginx'
+MaximumPercent: '200'
+MinimumHealthyPercent: '100'
+NginxCpu: '300'
+IntegrationCpu: '512'
+EnableECSRollingUpdate: 'Yes'

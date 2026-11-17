@@ -1,0 +1,9 @@
+---
+
+project_id: rfid
+tags:
+  Billing: 'rfid'
+  Project: 'rfid'
+  Owner: 'rfid'
+  Environment: '{{ cfn_environment }}'
+  

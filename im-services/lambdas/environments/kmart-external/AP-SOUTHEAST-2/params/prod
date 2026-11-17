@@ -1,0 +1,9 @@
+BaseStack=kmart-stack
+ClientName=kmart
+EnvironmentType=prod
+KmartRfidSohS3Bucket=kmartau-rfid-prod-soh
+SophiaUploadS3Bucket=kmartau-sophia-rfid-datasvcsprod
+WmsUrl=kmart.anko.com
+ApiGateWayVpceEndpoint=vpce-05fa02979c8ebf2b2
+VpcEndpoint=vpc-0c24d58ba15174c9f
+LogLevel=error

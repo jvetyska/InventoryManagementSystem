@@ -1,0 +1,38 @@
+[
+    {
+        "ParameterKey": "ParametersStackName",
+        "ParameterValue": "dosa-parameters"
+    },
+    {
+        "ParameterKey": "ClientName",
+        "ParameterValue": "kmart"
+    },
+    {
+        "ParameterKey": "Environment",
+        "ParameterValue": "dev"
+    },
+    {
+        "ParameterKey": "WmsPrivateUrl",
+        "ParameterValue": "app.dev.dosadev.a-kmtkmg.net"
+    },
+    {
+        "ParameterKey": "KmartRfidSohS3Bucket",
+        "ParameterValue": "kmart-dosa-dev-rfid-soh"
+    },
+    {
+        "ParameterKey": "SophiaUploadS3Bucket",
+        "ParameterValue": "kmartau-sophia-rfid-datasvcsdev"
+    },
+    {
+        "ParameterKey": "RfidDbServer",
+        "ParameterValue": "kwtsql387.core.kmtltd.net.au"
+    },
+    {
+        "ParameterKey": "LogLevel",
+        "ParameterValue": "debug"
+    },
+    {
+        "ParameterKey": "TwistLockInstallBundleSecret",
+        "ParameterValue": "security/prisma"
+    }
+]

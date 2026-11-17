@@ -1,0 +1,860 @@
+# This is the SAM template that represents the architecture of your serverless application
+# https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-template-basics.html
+
+# The AWSTemplateFormatVersion identifies the capabilities of the template
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/format-version-structure.html
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  ANKO US-WEST-2 LAMBDA
+
+
+# Transform section specifies one or more macros that AWS CloudFormation uses to process your template
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/transform-section-structure.html
+Transform:
+  - AWS::Serverless-2016-10-31
+Globals:
+  Function:
+    Timeout: 180
+    MemorySize: 256
+    Runtime: nodejs10.x
+    Tracing: Active
+    Layers:
+      - !Ref GetConfigLayer
+    Environment:
+      Variables:
+        NODE_ENV: dev
+        LOG_LEVEL: debug
+        LOG_NAMESPACES: '*'
+
+# Resources declares the AWS resources that you want to include in the stack
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+Resources:
+  # This is For Layers
+  GetConfigLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: event-dependencies
+      Description: Layer Dependencies for Node Environment lambda
+      ContentUri: ../../../LayerDependencies/
+      CompatibleRuntimes:
+        - nodejs10.x
+      LicenseInfo: 'MIT'
+      RetentionPolicy: Retain
+
+  TORYRunStatusWebhook:
+    DependsOn:
+      - BasicExecutionAndSecretsIAM
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../../../shared/src/tory-run-status-webhook/
+      Handler: index.handler
+      Environment:
+        Variables:
+          NODE_ENV: anko
+      Events:
+        TORYRunStatusWebhook:
+          Type: Api
+          Properties:
+            Path: /tory-run-status-webhook
+            Method: post
+      Timeout: 60
+      FunctionName: tory-run-status-webhook
+      Role: !GetAtt BasicExecutionAndSecretsIAM.Arn
+
+  BasicCloudWatchLogAndSecretManagerAccessPolicy:
+    DependsOn:
+      - BasicExecutionAndSecretsIAM
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogGroup'
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+              - 'secretsmanager:GetSecretValue'
+              - 'xray:PutTraceSegments'
+              - 'xray:PutTelemetryRecords'
+            Resource: '*'
+      PolicyName: CloudWatchLogAndGetSecret
+      Roles:
+        - !Ref BasicExecutionAndSecretsIAM
+        - !Ref PerformanceReportingIAMRole
+
+  BasicExecutionAndSecretsIAM:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Description: Shared role for Basic Lambda execution and Secret Manager access
+      RoleName: BasicExecutionAndSecrets
+
+  InventoryBotScheduleCheck:
+    DependsOn:
+      - BasicExecutionAndSecretsIAM
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Checks inventory_bot_schedule and updates bot_process
+      CodeUri: ../../../shared/src/inventory-bot-schedule-check/
+      Handler: inventory-bot-schedule-check.handler
+      Environment:
+        Variables:
+          NODE_ENV: anko
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: inventory-bot-schedule-check
+            Schedule: cron(0/15 * * * ? *)
+            Enabled: true
+      Timeout: 300
+      FunctionName: inventory-bot-schedule-check
+      Role: !GetAtt BasicExecutionAndSecretsIAM.Arn
+
+  InventoryBotRunningCheck:
+    DependsOn:
+      - BasicExecutionAndSecretsIAM
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Checks inventory_bot whichs have Running bot_process'
+      CodeUri: ../../../shared/src/inventory-bot-running-check/
+      Handler: inventory-bot-running-check.handler
+      Environment:
+        Variables:
+          NODE_ENV: anko
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: inventory-bot-running-check
+            Schedule: cron(5,20,35,50 * * * ? *)
+            Enabled: true
+      Timeout: 300
+      FunctionName: inventory-bot-running-check
+      Role: !GetAtt BasicExecutionAndSecretsIAM.Arn
+
+  InventoryBotChargingCheck:
+    DependsOn:
+      - BasicExecutionAndSecretsIAM
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Checks if inventory bot is charging
+      CodeUri: ../../../shared/src/inventory-bot-charging-check/
+      Handler: inventory-bot-charging-check.handler
+      Environment:
+        Variables:
+          NODE_ENV: anko
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: inventory-bot-charging-check
+            Schedule: cron(15,45 * * * ? *)
+            Enabled: false
+      Timeout: 300
+      FunctionName: inventory-bot-charging-check
+      Role: !GetAtt BasicExecutionAndSecretsIAM.Arn
+
+  # Performance Report Creation Lambda function for the dev environment
+  PerformanceReportCreationDev:
+    DependsOn:
+      - PerformanceReportingIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: PerformanceReportCreationDev
+      Description: Function to create performance report
+      CodeUri: ../../../shared/src/performance-report-creation/
+      Handler: performance-report-creation.handler
+      Environment:
+        Variables:
+          NODE_ENV: dev
+          DYNAMO_TABLE: performance_log_dev
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt PerformanceReportingIAMRole.Arn
+
+  # Cloudwatch Event associated with performance Report creation and reporting lambda for the dev environment
+  PerformanceReportDailyDev:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Daily cron to run early 4 AM PST, Creates performance report.
+      Name: performance_report_dev
+      ScheduleExpression: rate(1 hour)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - PerformanceReportCreationDev
+              - Arn
+          Id: PerformanceReportingDailyDev
+
+  # Performance Reporting lambda IAM Role
+  PerformanceReportingIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: AllowS3BucketAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:*'
+                Resource:
+                  - 'arn:aws:s3:::kmart-whm-logging/*'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess'
+      Description: Role for performance reporting lambda
+      RoleName: PerformanceReporting
+
+  # Stream Data to Snowflake every 15 minutes Lambda function
+  DataStreamForSnowflake:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAM
+    Properties:
+      Description: Function to stream data to Snowflake
+      CodeUri: ../../../shared/src/stream-data-to-snowflake/
+      Handler: stream-data-to-snowflake.handler
+      Runtime: nodejs12.x
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: 'data-stream-for-snowflake'
+            Schedule: cron(0/15 * * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 3008
+      FunctionName: 'data-stream-for-snowflake'
+      Role: !GetAtt BasicExecutionAndSecretsIAM.Arn
+
+  # Stream Data to Snowflake Daily Lambda function
+  DailyDataStreamForSnowflake:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAM
+    Properties:
+      Description: Function to stream data to Snowflake
+      CodeUri: ../../../shared/src/daily-stream-data-to-snowflake/
+      Handler: daily-stream-data-to-snowflake.handler
+      Runtime: nodejs12.x
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: 'daily-data-stream-for-snowflake'
+            Schedule: cron(0 10 * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 3008
+      FunctionName: 'daily-data-stream-for-snowflake'
+      Role: !GetAtt BasicExecutionAndSecretsIAM.Arn
+
+  InventoryBotReportError:
+    DependsOn:
+      - BasicExecutionAndSecretsIAM
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Sends notifications for inventory bot error
+      CodeUri: ../../../shared/src/inventory-bot-report-error/
+      Handler: inventory-bot-report-error.handler
+      Runtime: nodejs12.x
+      Events:
+        InventoryBotReportError:
+          Type: Api
+          Properties:
+            Path: /inventory-bot-report-error
+            Method: post
+      Timeout: 300
+      FunctionName: 'inventory-bot-report-error'
+      Role: !GetAtt BasicExecutionAndSecretsIAM.Arn
+
+  ######################## V2 of Tory processing data using step function ########################
+
+  # Inventory Bot Schedule Check Lambda Function for v2
+  InventoryBotScheduleCheckV2Lambda:
+    DependsOn:
+      - InventoryBotScheduleCheckV2LambdaIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Checks inventory_bot_schedule and updates bot_process
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/inventory-bot-schedule-check-v2/
+      Handler: inventory-bot-schedule-check-v2.handler
+      Runtime: nodejs12.x
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: 'inventory-bot-schedule-check-v2'
+            Schedule: cron(0/15 * * * ? *)
+            Enabled: false
+      Timeout: 300
+      FunctionName: 'inventory-bot-schedule-check-v2'
+      Role: !GetAtt InventoryBotScheduleCheckV2LambdaIAMRole.Arn
+
+  # IAM role for InventoryBotScheduleCheckV2Lambda
+  InventoryBotScheduleCheckV2LambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: 'InventoryBotScheduleCheckV2LambdaRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role for inventory bot schedule check lambda
+      RoleName: 'InventoryBotScheduleCheckV2LambdaIAMRole'
+      ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+
+  # Inventory Bot Running Check Lambda Function
+  InventoryBotRunningCheckV2Lambda:
+    DependsOn:
+      - InventoryBotRunningCheckV2LambdaIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Checks inventory_bot whichs have Running bot_process
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/inventory-bot-running-check-v2/
+      Handler: inventory-bot-running-check-v2.handler
+      Runtime: nodejs12.x
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: 'inventory-bot-running-check-v2'
+            Schedule: cron(5,20,35,50 * * * ? *)
+            Enabled: false
+      Timeout: 300
+      FunctionName: 'inventory-bot-running-check-v2'
+      Role: !GetAtt InventoryBotRunningCheckV2LambdaIAMRole.Arn
+
+  # IAM role for InventoryBotRunningCheckV2Lambda
+  InventoryBotRunningCheckV2LambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: 'InventoryBotRunningCheckV2LambdaRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role for inventory bot running check lambda
+      RoleName: 'InventoryBotRunningCheckV2LambdaIAMRole'
+      ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+
+  # SQS for tory Webhook Validate and Invoke state machine
+  ValidateAndInvokeStateMachineQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: 'validate-and-invoke-state-machine'
+      VisibilityTimeout: 500
+      MessageRetentionPeriod: 10800
+
+  # event mapping for sqs to lambda function
+  ValidateAndInvokeStateMachineSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - ValidateAndInvokeStateMachineQueue
+          - Arn
+      FunctionName:
+        Ref: ValidateAndInvokeStateMachineSQSLambda
+
+  # Lambda function attach to SQS for tory Webhook Validate and Invoke state machine
+  ValidateAndInvokeStateMachineSQSLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - ValidateAndInvokeStateMachineSQSLambdaIAMRole
+    Properties:
+      Description: Attached with SQS to validate tory webhook and start state machine
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/validate-and-invoke-state-machine/
+      Handler: validate-and-invoke-state-machine.handler
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          STEP_FUNCTION_ARN: !GetAtt ProcessToryDataSystemStepFunction.Arn
+      Timeout: 150
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 2
+      FunctionName: 'validate-and-invoke-state-machine'
+      Role: !GetAtt ValidateAndInvokeStateMachineSQSLambdaIAMRole.Arn
+
+  # IAM role for ValidateAndInvokeStateMachineSQSLambda
+  ValidateAndInvokeStateMachineSQSLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: 'ValidateAndInvokeStateMachineSQSLambdaRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'states:StartExecution'
+                  - 'states:SendTaskSuccess'
+                  - 'states:SendTaskFailure'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role for validate tory webhook and start state machine SQS lambda
+      RoleName: 'ValidateAndInvokeStateMachineSQSLambdaIAMRole'
+      ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+
+  # SQS to Preprocessing tory Data
+  PreprocessingToryDataQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: 'preprocessing-tory-data'
+      VisibilityTimeout: 200
+      MessageRetentionPeriod: 10800
+
+  # event mapping for sqs to lambda function
+  PreprocessingToryDataSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - PreprocessingToryDataQueue
+          - Arn
+      FunctionName:
+        Ref: PreprocessingToryDataSQSLambda
+
+  # Lambda function attach to SQS for Preprocessing Tory data
+  PreprocessingToryDataSQSLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - ProcessToryDataSystemLambdaIAMRole
+    Properties:
+      Description: Attached with SQS to preprocessing tory data
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/preprocessing-tory-data/
+      Handler: preprocessing-tory-data.handler
+      Runtime: nodejs12.x
+      Timeout: 180
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 3
+      FunctionName: 'preprocessing-tory-data'
+      Role: !GetAtt ProcessToryDataSystemLambdaIAMRole.Arn
+
+  # SQS to update inventory with tory Data
+  UpdatingInventoryDataQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: 'update-inventory'
+      VisibilityTimeout: 200
+      MessageRetentionPeriod: 10800
+
+  # event mapping for sqs to lambda function
+  UpdatingInventoryDataSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - UpdatingInventoryDataQueue
+          - Arn
+      FunctionName:
+        Ref: UpdatingInventoryDataSQSLambda
+
+  # Lambda function attach to SQS for updating inventory with tory Data
+  UpdatingInventoryDataSQSLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - ProcessToryDataSystemLambdaIAMRole
+    Properties:
+      Description: Attached with SQS to update inventory with tory data
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/update-inventory/
+      Handler: update-inventory.handler
+      Runtime: nodejs12.x
+      Timeout: 180
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 3
+      FunctionName: 'update-inventory'
+      Role: !GetAtt ProcessToryDataSystemLambdaIAMRole.Arn
+
+  # Lambda function to send data to kafka
+  KafkaUploadLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - ProcessToryDataSystemLambdaIAMRole
+    Properties:
+      Description: Upload tory processing data to kafka
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/kafka-upload/
+      Handler: kafka-upload.handler
+      Runtime: nodejs12.x
+      Timeout: 300
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 10
+      FunctionName: 'kafka-upload'
+      Role: !GetAtt ProcessToryDataSystemLambdaIAMRole.Arn
+
+  # Lambda function to upload inventory bot map to S3
+  UploadToryMapLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - ProcessToryDataSystemLambdaIAMRole
+    Properties:
+      Description: Upload tory map to s3
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/upload-tory-map/
+      Handler: upload-tory-map.handler
+      Runtime: nodejs12.x
+      Timeout: 120
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 50
+      FunctionName: 'upload-tory-map'
+      Role: !GetAtt ProcessToryDataSystemLambdaIAMRole.Arn
+
+  # Lambda function to send error
+  ErrorReportingLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - ProcessToryDataSystemLambdaIAMRole
+    Properties:
+      Description: Error reporting for tory processing state machine
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/error-reporting/
+      Handler: error-reporting.handler
+      Runtime: nodejs12.x
+      Timeout: 60
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 50
+      FunctionName: 'error-reporting'
+      Role: !GetAtt ProcessToryDataSystemLambdaIAMRole.Arn
+
+  # IAM role for all lambda attached with process tory data system step function
+  ProcessToryDataSystemLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Policies:
+        - PolicyName: 'ProcessToryDataSystemLambdaPolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'states:StartExecution'
+                  - 'states:SendTaskSuccess'
+                  - 'states:SendTaskFailure'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                  - 's3:PutObject'
+                  - 's3:PutObjectAcl'
+                Resource: "*"
+      Description: Role for All Process Tory data State Machine Lambda
+      RoleName: 'ProcessToryDataSystemLambdaIAMRole'
+    
+  # Role attached with step function
+  ProcessToryDataSystemExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+      Policies:
+        - PolicyName: 'ProcessToryDataSystemExecutionRolePolicy'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'lambda:InvokeFunction'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role for Task Management System Step Function Execution
+      RoleName: 'ProcessToryDataSystemExecutionRole'
+      
+  # ProcessToryDataSystemStepFunction
+  ProcessToryDataSystemStepFunction:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: 'ProcessToryDataSystemStepFunction'
+      TracingConfiguration:
+        Enabled: true
+      DefinitionString:
+        !Sub
+          - |-
+            {
+              "Comment": "Tort-data-processing",
+              "StartAt": "choiceByStatus",
+              "States": {
+                "choiceByStatus": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Variable": "$.status",
+                      "StringEquals": "RunDataReady",
+                      "Next": "GetToryDataAndPreprocess"
+                    },
+                    {
+                      "Variable": "$.status",
+                      "StringEquals": "Interrupted",
+                      "Next": "ErrorReporting"
+                    }
+                  ],
+                  "Default": "EndState"
+                },
+                "GetToryDataAndPreprocess": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+                  "Parameters": {
+                    "QueueUrl": "${PreprocessingToryDataSQSURL}",
+                    "MessageBody": {
+                      "TaskToken.$": "$$.Task.Token",
+                      "Input.$": "$"
+                    }
+                  },
+                  "ResultPath": "$",
+                  "HeartbeatSeconds": 10800,
+                  "Next": "ChoiceForUpdateInventory",
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "Next": "ErrorReporting",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "ChoiceForUpdateInventory": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Variable": "$.isUpdateInventory",
+                      "BooleanEquals": true,
+                      "Next": "UpdateInventoryWithToryData"
+                    },
+                    {
+                      "Variable": "$.isUpdateInventory",
+                      "BooleanEquals": false,
+                      "Next": "WaitBeforeMapUpload"
+                    }
+                  ],
+                  "Default": "EndState"
+                },
+                "UpdateInventoryWithToryData": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+                  "Parameters": {
+                    "QueueUrl": "${UpdatingInventoryDataSQSURL}",
+                    "MessageBody": {
+                      "TaskToken.$": "$$.Task.Token",
+                      "Input.$": "$"
+                    }
+                  },
+                  "ResultPath": "$",
+                  "HeartbeatSeconds": 10800,
+                  "Next": "KafkaUpload",
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "Next": "ErrorReporting",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "KafkaUpload": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke",
+                  "Parameters": {
+                    "FunctionName": "${KafkaUploadLambda}",
+                    "Payload": {
+                      "Input.$": "$"
+                    }
+                  },
+                  "ResultPath": "$.Payload",
+                  "Next": "WaitBeforeMapUpload",
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "Next": "ErrorReporting",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "WaitBeforeMapUpload": {
+                  "Type": "Wait",
+                  "Seconds": 180,
+                  "Next": "UploadToryMap"
+                },
+                "UploadToryMap": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke",
+                  "Parameters": {
+                    "FunctionName": "${UploadToryMapLambda}",
+                    "Payload": {
+                      "Input.$": "$"
+                    }
+                  },
+                  "ResultPath": "$.Payload",
+                  "Next": "EndState",
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "Next": "ErrorReportingForMap",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "ErrorReporting": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke",
+                  "Parameters": {
+                    "FunctionName": "${ErrorReportingLambda}",
+                    "Payload": {
+                      "Input.$": "$"
+                    }
+                  },
+                  "ResultPath": "$.Payload",
+                  "Next": "WaitBeforeMapUpload",
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "Next": "WaitBeforeMapUpload",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "ErrorReportingForMap": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke",
+                  "Parameters": {
+                    "FunctionName": "${ErrorReportingLambda}",
+                    "Payload": {
+                      "Input.$": "$"
+                    }
+                  },
+                  "ResultPath": "$",
+                  "Next": "EndState",
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "Next": "FailState",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "EndState": {
+                  "Type": "Pass",
+                  "End": true
+                },
+                "FailState": {
+                  "Type": "Fail",
+                  "Error": "See the start of FailState"
+                }
+              }
+            }
+          - {
+              PreprocessingToryDataSQSURL: !Ref PreprocessingToryDataQueue,
+              UpdatingInventoryDataSQSURL: !Ref UpdatingInventoryDataQueue,
+              KafkaUploadLambda: !Ref KafkaUploadLambda,
+              UploadToryMapLambda: !Ref UploadToryMapLambda,
+              ErrorReportingLambda: !Ref ErrorReportingLambda
+            }
+      RoleArn: !GetAtt [ ProcessToryDataSystemExecutionRole, Arn ]

@@ -1,0 +1,25 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  ClientName:
+    Type: String
+    Description: The name of the client. This should be the same name across all dev, uat, and prod environments
+    Default: kmart
+  EnvironmentType:
+    Type: String
+    Description: The environment type. This must be dev, uat, or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - uat
+      - prod
+
+Resources:
+  BucketCfTemplate:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${ClientName}-${EnvironmentType}-cf-templates'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true

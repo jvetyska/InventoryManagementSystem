@@ -1,0 +1,11 @@
+{
+    "extends": "recommended",
+    "rules": {
+        "comments.ClassJavadoc": "off",
+        "convention.CompileStatic": "off",
+        "dry.DuplicateStringLiteral": "off",
+        "formatting.LineLength": "off",
+        "Size.NestedBlockDepth": "off",
+        "unnecessary.UnnecessaryObjectReferences": "off"
+    }
+}

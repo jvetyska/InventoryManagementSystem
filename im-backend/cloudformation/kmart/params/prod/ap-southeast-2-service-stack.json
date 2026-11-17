@@ -1,0 +1,22 @@
+[
+    {
+      "ParameterKey": "BaseStack",
+      "ParameterValue": "kmart-stack"
+    },
+    {
+      "ParameterKey": "ClientName",
+      "ParameterValue": "kmart"
+    },
+    {
+      "ParameterKey": "EnvironmentType",
+      "ParameterValue": "prod"
+    },
+    {
+      "ParameterKey": "FullyQualifiedURL",
+      "ParameterValue": "kmart.anko.com"
+    },
+    {
+      "ParameterKey": "HostedZoneID",
+      "ParameterValue": "Z047742495QKTXY8MUT"
+    }
+  ]

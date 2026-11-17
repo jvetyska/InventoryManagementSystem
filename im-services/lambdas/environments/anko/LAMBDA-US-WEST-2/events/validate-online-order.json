@@ -1,0 +1,12 @@
+{ "body" :
+    {
+         "data": {
+             "type": "order",
+             "id": 11733,
+             "status": {
+                 "previous_status_id": 1,
+                 "new_status_id": 2
+             }
+         }   
+    }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "fetch-and-compare-images-pims",
+  "version": "0.0.1",
+  "description": "Fetch images from PIMS DB and compare image hash to check if they changed",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}

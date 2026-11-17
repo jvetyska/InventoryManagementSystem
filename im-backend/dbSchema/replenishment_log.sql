@@ -1,0 +1,23 @@
+CREATE TABLE `replenishment_log` (
+  `Date` datetime NOT NULL,
+  `Keycode` int NOT NULL,
+  `Store` varchar(45) NOT NULL,
+  `Warehouse` varchar(45) NOT NULL,
+  `DC` varchar(45) NOT NULL,
+  `AWS` float DEFAULT '0',
+  `ADS` float DEFAULT '0',
+  `OOS` tinyint DEFAULT '0',
+  `MDU` int DEFAULT '0',
+  `StoreDOC` decimal(12,2) DEFAULT NULL,
+  `WarehouseDOC` decimal(12,2) DEFAULT NULL,
+  `StoreInventory` int DEFAULT '0',
+  `WarehouseInventory` int DEFAULT '0',
+  `DCInventory` int DEFAULT '0',
+  `StoreReplenishment` decimal(12,2) DEFAULT '0.00',
+  `WarehouseReplenishment` int DEFAULT '0',
+  `IncomingReplenishment` int DEFAULT '0',
+  `Complience` varchar(45) DEFAULT NULL,
+  `UnitsPerTransaction` int DEFAULT '1',
+  `OnlineSales` int DEFAULT '0',
+  PRIMARY KEY (`Date`,`Keycode`,`Store`,`Warehouse`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

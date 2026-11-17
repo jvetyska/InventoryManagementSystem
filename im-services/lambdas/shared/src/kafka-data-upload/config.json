@@ -1,0 +1,50 @@
+{
+    "dev" : {
+        "secret_name": "AnkoMicroserviceSecrets",
+        "region": "us-west-2",
+        "kafkaBootstrapServers": "pkc-4jyq4.ap-southeast-2.aws.confluent.cloud:9092",
+        "kafkaTopicNamePrefix": "kmart.raw.dosa."
+    },
+    "kmart-dev" : {
+        "secret_name": "kmart-dev-secret",
+        "region": "ap-southeast-2",
+        "kafkaBootstrapServers": "pkc-4jyq4.ap-southeast-2.aws.confluent.cloud:9092",
+        "kafkaTopicNamePrefix": "kmart.raw.dosa."
+    },
+    "kmart-uat" : {
+        "secret_name": "kmart-uat-secret",
+        "region": "ap-southeast-2",
+        "kafkaBootstrapServers": "pkc-42n24.ap-southeast-2.aws.confluent.cloud:9092",
+        "kafkaTopicNamePrefix": "kmart.raw.dosa."
+    },
+    "kmart-prod" : {
+        "secret_name": "kmart-prod-secret",
+        "region": "ap-southeast-2",
+        "kafkaBootstrapServers": "pkc-42n24.ap-southeast-2.aws.confluent.cloud:9092",
+        "kafkaTopicNamePrefix": "kmart.raw.dosa."
+    },
+    "kmart-hamilton-dev" : {
+        "secret_name": "kmart-dev-secret",
+        "region": "ap-southeast-2",
+        "kafkaBootstrapServers": "pkc-4jyq4.ap-southeast-2.aws.confluent.cloud:9092",
+        "kafkaTopicNamePrefix": "kmart.raw.dosa."
+    },
+    "kmart-hamilton-svt" : {
+        "secret_name": "kmart-svt-secret",
+        "region": "ap-southeast-2",
+        "kafkaBootstrapServers": "pkc-4jyq4.ap-southeast-2.aws.confluent.cloud:9092",
+        "kafkaTopicNamePrefix": "kmart.raw.dosa."
+    },
+    "kmart-hamilton-uat" : {
+        "secret_name": "kmart-uat-secret",
+        "region": "ap-southeast-2",
+        "kafkaBootstrapServers": "pkc-42n24.ap-southeast-2.aws.confluent.cloud:9092",
+        "kafkaTopicNamePrefix": "kmart.raw.dosa."
+    },
+    "kmart-hamilton-prod" : {
+        "secret_name": "kmart-prod-secret",
+        "region": "ap-southeast-2",
+        "kafkaBootstrapServers": "pkc-42n24.ap-southeast-2.aws.confluent.cloud:9092",
+        "kafkaTopicNamePrefix": "kmart.raw.dosa."
+    }
+}

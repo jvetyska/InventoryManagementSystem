@@ -1,0 +1,21 @@
+CREATE TABLE `store_backfill_schedule` (
+  `ID` bigint NOT NULL AUTO_INCREMENT,
+  `LocationID` varchar(13) NOT NULL,
+  `Hour` int NOT NULL,
+  `Minute` int DEFAULT NULL,
+  `Name` varchar(45) DEFAULT NULL,
+  `Sun` tinyint NOT NULL DEFAULT '0',
+  `Mon` tinyint NOT NULL DEFAULT '0',
+  `Tue` tinyint NOT NULL DEFAULT '0',
+  `Wed` tinyint NOT NULL DEFAULT '0',
+  `Thu` tinyint NOT NULL DEFAULT '0',
+  `Fri` tinyint NOT NULL DEFAULT '0',
+  `Sat` tinyint NOT NULL DEFAULT '0',
+  `IsEnabled` tinyint NOT NULL DEFAULT '1',
+  `keycodesToCheck` int DEFAULT '0',
+  `hoursToComplete` int DEFAULT '0',
+  `hasInventoryCheck` tinyint DEFAULT '0',
+  `InventoryCheckType` enum('standard','system') DEFAULT NULL,
+  `isCurrentAdjustmentCanceled` tinyint DEFAULT '0',
+  PRIMARY KEY (`ID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

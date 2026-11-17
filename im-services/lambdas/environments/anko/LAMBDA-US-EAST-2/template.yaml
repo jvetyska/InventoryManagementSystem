@@ -1,0 +1,661 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  ANKO US-EAST-2 LAMBDA
+
+
+Transform:
+  - AWS::Serverless-2016-10-31
+Globals:
+  Function:
+    Timeout: 180
+    MemorySize: 256
+    Environment:
+      Variables:
+        NODE_ENV: dev
+        LOG_LEVEL: debug
+        LOG_NAMESPACES: '*'
+    Tracing: Active
+
+Resources:
+  # Create The Dependencie Layer For Lambda
+  GetConfigLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: node-layer-dependencies
+      Description: Layer Dependencies for US-EAST-2 lambda with Node Environment
+      ContentUri: ../../../LayerDependencies/
+      CompatibleRuntimes:
+        - nodejs10.x
+      LicenseInfo: 'MIT'
+      RetentionPolicy: Retain
+
+  BasicCloudWatchLogAndSecretManagerAccessPolicy:
+    DependsOn:
+      - DatabaseCleanupLambdaIAMRole
+      - CreateBackfillCountTasksLambdaIAMRoleDev
+      - GenerateBackfillReplenishmentTasksLambdaIAMRoleDev
+      - InventoryUploadForKmartDevIAMRole
+      - InventoryUploadForKmartAnkoIAMRole
+      - KafkaDataUploadLambdaIAMRole
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogGroup'
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+              - 'secretsmanager:GetSecretValue'
+              - 'xray:PutTraceSegments'
+              - 'xray:PutTelemetryRecords'
+            Resource: '*'
+      PolicyName: CloudWatchLogAndGetSecret
+      Roles:
+        - !Ref DatabaseCleanupLambdaIAMRole
+        - !Ref CreateBackfillCountTasksLambdaIAMRoleDev
+        - !Ref GenerateBackfillReplenishmentTasksLambdaIAMRoleDev
+        - !Ref InventoryUploadForKmartDevIAMRole
+        - !Ref InventoryUploadForKmartAnkoIAMRole
+        - !Ref KafkaDataUploadLambdaIAMRole
+
+  # Database cleanup
+  DatabaseCleanup:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - DatabaseCleanupLambdaIAMRole
+    Properties:
+      FunctionName: DatabaseCleanup
+      Description: Cleans up tables in MySQL and DynamoDB that contain old logging information no longer needed
+      CodeUri: ../../../shared/src/database-cleanup/
+      Handler: database-cleanup.handler
+      Runtime: nodejs10.x
+      Layers:
+        - !Ref GetConfigLayer
+      Environment:
+        Variables:
+          NODE_ENV: anko
+          DYNAMO_TABLE_1: task_log
+          DYNAMO_TABLE_2: inventory_log
+          DYNAMO_TABLE_3: performance_log
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: daily-database-cleanup
+            Description: Runs once every day at midnight UTC
+            Schedule: cron(0 0 * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt DatabaseCleanupLambdaIAMRole.Arn
+
+  # IAM role associated with Database Cleanup
+  DatabaseCleanupLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess'
+      Description: Role for Database Cleanup Lambda
+      RoleName: DatabaseCleanupLambdaIAMRole
+
+  # Create backfill count tasks
+  CreateBackfillCountTasksDev:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - CreateBackfillCountTasksLambdaIAMRoleDev
+    Properties:
+      FunctionName: CreateBackfillCountTasksDev
+      Description: Creates backfill count tasks
+      CodeUri: ../../../shared/src/create-backfill-count-tasks/
+      Handler: create-backfill-count-tasks.handler
+      Runtime: nodejs10.x
+      Layers:
+        - !Ref GetConfigLayer
+      Environment:
+        Variables:
+          NODE_ENV: dev
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: create-backfill-count-tasks-dev
+            Description: Runs every 5 minutes starting on the 1st min of every hour
+            Schedule: cron(1/5 * * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt CreateBackfillCountTasksLambdaIAMRoleDev.Arn
+
+  # IAM role associated with Database Cleanup
+  CreateBackfillCountTasksLambdaIAMRoleDev:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess'
+      Description: Role for Database Cleanup Lambda
+      RoleName: CreateBackfillCountTasksLambdaIAMRoleDev
+
+  # Generate backfill replenishment tasks
+  GenerateBackfillReplenishmentTasksDev:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - GenerateBackfillReplenishmentTasksLambdaIAMRoleDev
+    Properties:
+      FunctionName: GenerateBackfillReplenishmentTasksDev
+      Description: Generates backfill replenishment tasks
+      CodeUri: ../../../shared/src/generate-backfill-replenishment-tasks/
+      Handler: generate-backfill-replenishment-tasks.handler
+      Runtime: nodejs10.x
+      Layers:
+        - !Ref GetConfigLayer
+      Environment:
+        Variables:
+          NODE_ENV: dev
+          SYSTEM_INVENTORY_TASK_URL: https://rfid-integration.anko.com/api/create_inventory_task
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: generate-backfill-replenishment-tasks-dev
+            Description: Runs every 5 minutes starting on the 1st min of every hour
+            Schedule: cron(1/5 * * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt GenerateBackfillReplenishmentTasksLambdaIAMRoleDev.Arn
+
+  # IAM role associated with GenerateBackfillReplenishmentTasks
+  GenerateBackfillReplenishmentTasksLambdaIAMRoleDev:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess'
+      Description: Role for GenerateBackfillReplenishmentTasks Lambda
+      RoleName: GenerateBackfillReplenishmentTasksLambdaIAMRoleDev
+
+  KafkaDataUpload:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - KafkaDataUploadLambdaIAMRole
+    Properties:
+      Description: Uploads data to Kafka
+      PackageType: Image
+      Environment:
+        Variables:
+          NODE_ENV: dev
+      Events:
+        KafkaDataUpload:
+          Type: Api
+          Properties:
+            Path: /kafka-data-upload
+            Method: post
+      Timeout: 600
+      MemorySize: 1024
+      FunctionName: kafka-data-upload
+      Role: !GetAtt KafkaDataUploadLambdaIAMRole.Arn
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ../../../shared/src/kafka-data-upload
+      DockerTag: v1
+
+  # IAM role for SQS for KafkaDataUpload
+  KafkaDataUploadLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Description: Role for KafkaDataUpload lambda
+      RoleName: KafkaDataUploadLambdaIAMRole
+
+  # Lambda function: Inventory upload for Kmart (dev)
+  InventoryUploadForKmartDev:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - InventoryUploadForKmartDevIAMRole
+    Properties:
+      FunctionName: InventoryUploadForKmartDev
+      Description: Function to upload inventory csv to s3 bucket for kmart
+      CodeUri: ../../../shared/src/rfid-inventory-upload-for-kmart/
+      Handler: rfid-inventory-upload-for-kmart.handler
+      Runtime: nodejs10.x
+      Layers:
+        - !Ref GetConfigLayer
+      Environment:
+        Variables:
+          NODE_ENV: dev
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: inventory-upload-for-kmart-dev
+            Schedule: cron(0 * * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt InventoryUploadForKmartDevIAMRole.Arn
+
+  # IAM role: Associated with the above Lambda function
+  InventoryUploadForKmartDevIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Description: Role for InventoryUploadForKmartDev Lambda
+      RoleName: InventoryUploadForKmartDevIAMRole
+
+  # Lambda function: Inventory upload for Kmart (anko)
+  InventoryUploadForKmartAnko:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - InventoryUploadForKmartAnkoIAMRole
+    Properties:
+      FunctionName: InventoryUploadForKmartAnko
+      Description: Function to upload inventory csv to s3 bucket for kmart
+      CodeUri: ../../../shared/src/rfid-inventory-upload-for-kmart/
+      Handler: index.handler
+      Runtime: nodejs10.x
+      Layers:
+        - !Ref GetConfigLayer
+      Environment:
+        Variables:
+          NODE_ENV: anko
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: inventory-upload-for-kmart-anko
+            Schedule: cron(0 * * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt InventoryUploadForKmartAnkoIAMRole.Arn
+
+  # IAM role: Associated with the above Lambda function
+  InventoryUploadForKmartAnkoIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Description: Role for InventoryUploadForKmartDev Lambda
+      RoleName: InventoryUploadForKmartAnkoIAMRole
+  # =============================== Generic Slack Reporting Infra (start) ===============================
+  # Generic Slack Report Role
+  GenericSlackReportingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: 'GenericSlackReportingRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*" 
+      Description: Role to fetch and push data onto SQS
+      RoleName: 'GenericSlackReportingRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+  # Report on Slack
+  GenericSlackReporting:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - GenericSlackReportingRole
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+      CodeUri: ../../../shared/src/generic-reporting-slack
+      Events:
+        HttpPost:
+          Type: Api
+          Properties:
+            Path: '/reports/slack'
+            Method: post
+      Timeout: 300
+      MemorySize: 512
+      Role: !GetAtt GenericSlackReportingRole.Arn
+      FunctionName: generic-slack-reporting
+  # =============================== Generic Slack Reporting Infra (End) ===============================
+  # =============================== Product & Image Sync Infra (Start) ===============================
+  # FetchProductsFromIPS IAM Role
+  FetchProductsFromIPSIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: 'FetchProductsFromIPSIAMRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*" 
+      Description: Role to fetch and push data onto SQS
+      RoleName: 'FetchProductsFromIPSIAMRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+  # FetchProductsFromIPS Lamba Stack
+  FetchProductsFromIPSLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - FetchProductsFromIPSIAMRole
+    Properties:
+      Description: Fetch Products from IPS DB
+      CodeUri: ../../../shared/src/product-and-image-sync/fetch-products-ips-db/
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+      Timeout: 300
+      MemorySize: 2048
+      ReservedConcurrentExecutions: 5
+      FunctionName: 'fetch-product-from-ips'
+      Role: !GetAtt FetchProductsFromIPSIAMRole.Arn
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: daily-product-sync-init
+            Description: Runs once every day at midnight UTC
+            Schedule: cron(0 0 * * ? *)
+            Enabled: false
+  # SQS
+  PersitProductsToDBQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 5
+      QueueName: 'persist-product-to-db-queue'
+      ReceiveMessageWaitTimeSeconds: 1
+      VisibilityTimeout: 301
+      MessageRetentionPeriod: 905
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt 'DeadLetterQueue.Arn'
+        maxReceiveCount: 3
+  # Role for Lambda
+  PersistProductsToDBLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: 'PersistProductsToDBLambdaIAMRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role to process products data from the SQS Queue
+      RoleName: 'PersistProductsToDBLambdaIAMRole' 
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+  # Lambda
+  PersistProductsToDBLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - PersistProductsToDBLambdaIAMRole
+    Properties:
+      Description: Process Products Data that are being put on the SQS
+      CodeUri: ../../../shared/src/product-and-image-sync/persist-products-to-db/
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 300
+      MemorySize: 1024
+      Layers:
+        - !Ref GetConfigLayer
+      ReservedConcurrentExecutions: 5
+      FunctionName: 'persist-product-to-db'
+      Role: !GetAtt PersistProductsToDBLambdaIAMRole.Arn
+  # Lambada SQS Mapping
+  PersistProductsToDBSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - PersitProductsToDBQueue
+          - Arn  
+      FunctionName:
+        Ref: PersistProductsToDBLambda
+  #FetchAndCompareImagesPIMSQueue
+  FetchAndCompareImagesPIMSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 5
+      QueueName: 'fetch-and-compare-images-pims-queue'
+      ReceiveMessageWaitTimeSeconds: 1
+      VisibilityTimeout: 301
+      MessageRetentionPeriod: 905
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt 'DeadLetterQueue.Arn'
+        maxReceiveCount: 3
+  #FetchAndCompareImagesPIMSIAMRole
+  FetchAndCompareImagesPIMSIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: 'FetchAndCompareImagesPIMSIAMRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role to process keycode from queue and fetch images from PIMS DB
+      RoleName: 'FetchAndCompareImagesPIMSIAMRole' 
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+  #FetchAndCompareImagesPIMSLambda
+  FetchAndCompareImagesPIMSLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - FetchAndCompareImagesPIMSIAMRole
+    Properties:
+      Description: Get Keycodes from Queue, fetch the ImageHash from PIM_DB and check if image changed, then push to next queue
+      CodeUri: ../../../shared/src/product-and-image-sync/fetch-and-compare-images-pims/
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+      Timeout: 300
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 5
+      FunctionName: 'fetch-and-compare-images-pims'
+      Role: !GetAtt FetchAndCompareImagesPIMSIAMRole.Arn
+  #FetchAndCompareImagesPIMSSQSEvent
+  FetchAndCompareImagesPIMSSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - FetchAndCompareImagesPIMSQueue
+          - Arn  
+      FunctionName:
+        Ref: FetchAndCompareImagesPIMSLambda
+  #UploadImagesToS3Queue
+  UploadImagesToS3Queue:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 5
+      QueueName: 'upload-images-to-s3-queue'
+      ReceiveMessageWaitTimeSeconds: 1
+      VisibilityTimeout: 301
+      MessageRetentionPeriod: 905
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt 'DeadLetterQueue.Arn'
+        maxReceiveCount: 3
+  #UploadImagesToS3IAMRole
+  UploadImagesToS3IAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: 'UploadImagesToS3IAMRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role to upload product images to our s3 bucket
+      RoleName: 'UploadImagesToS3IAMRole' 
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+  #UploadImagesToS3Lambda
+  UploadImagesToS3Lambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - UploadImagesToS3IAMRole
+    Properties:
+      Description: Process Products Data that are being put on the SQS
+      CodeUri: ../../../shared/src/product-and-image-sync/upload-images-to-s3/
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+      Timeout: 300
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 20
+      FunctionName: 'upload-images-to-s3'
+      Role: !GetAtt UploadImagesToS3IAMRole.Arn 
+  #UploadImagesToS3LambdaSQSEvent
+  UploadImagesToS3LambdaSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - UploadImagesToS3Queue
+          - Arn  
+      FunctionName:
+        Ref: UploadImagesToS3Lambda
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: 'dead-letter-queue'
+  # =============================== Product & Image Sync Infra (end) ===============================

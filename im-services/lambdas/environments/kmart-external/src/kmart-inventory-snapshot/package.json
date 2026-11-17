@@ -1,0 +1,11 @@
+{
+  "name": "kmart-inventory-snapshot",
+  "version": "1.0.0",
+  "description": "Takes snapshot of kmart inventory at the start of backfill schedules",
+  "dependencies": {},
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/ankous/anko_microservices"
+  }
+}

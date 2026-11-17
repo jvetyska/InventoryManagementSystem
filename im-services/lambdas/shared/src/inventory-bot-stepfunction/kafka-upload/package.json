@@ -1,0 +1,12 @@
+{
+    "name": "kafka-upload",
+    "version": "1.0.0",
+    "description": "kafka-upload lambda attached with tory data processing step function for uploading data to kafka",
+    "dependencies": {},
+    "license": "ISC",
+    "repository": {
+      "type": "git",
+      "url": "https://bitbucket.org/ankous/anko_microservices"
+    }
+  }
+  

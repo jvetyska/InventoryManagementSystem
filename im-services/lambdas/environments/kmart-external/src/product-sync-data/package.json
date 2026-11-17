@@ -1,0 +1,11 @@
+{
+  "name": "product-sync",
+  "version": "1.0.0",
+  "description": "Product synchronization from Kmart's internal MS SQL database to Anko's MySQL database",
+  "dependencies": {},
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/ankous/anko_microservices"
+  }
+}

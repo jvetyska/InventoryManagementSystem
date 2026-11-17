@@ -1,0 +1,938 @@
+{
+    "getRobotName": {
+        "RobotName": "TEST-TORY"
+    },
+    "getMotorStatus": {
+        "Status": "Bumper"
+    },
+    "getBatteryStatus": {
+        "@version[mira::robot::BatteryState]": 2,
+        "CellVoltage": [
+            3.321,
+            3.321,
+            3.321,
+            3.321,
+            3.321,
+            3.321,
+            3.321,
+            3.321
+        ],
+        "Charging": false,
+        "Current": 2.249,
+        "LifePercent": 93,
+        "LifeTime": -1,
+        "PowerSupplyPresent": false,
+        "Voltage": 26.569
+    },
+    "getRobotPose": {
+        "Pose": {
+            "Cov": [
+                [
+                    0.001,
+                    -0.000,
+                    0.000
+                ],
+                [
+                    -0.000,
+                    0.000,
+                    0.000
+                ],
+                [
+                    0.000,
+                    0.000,
+                    0.001
+                ]
+            ],
+            "Phi": -25.635,
+            "X": -9.723,
+            "Y": -7.270
+        }
+    },
+    "getRuntimeStatus": {
+        "RuntimeStatus": "Running"
+    },
+    "getIsRunning": {
+        "IsRunning": true
+    },
+    "getModuleStatus": {
+
+    },
+    "getDistinctTags": {
+        "DistinctTags": 2186
+    },
+    "getCurrentTask": {
+        "Task": "RunHybridTraversalInventoryTask"
+    },
+    "getStatus": {
+        "Battery": {
+            "@version[mira::robot::BatteryState]": 2,
+            "CellVoltage": [
+                3.321,
+                3.321,
+                3.319,
+                3.321,
+                3.321,
+                3.321,
+                3.321,
+                3.318
+            ],
+            "Charging": false,
+            "Current": 2.907,
+            "LifePercent": 93,
+            "LifeTime": -1,
+            "PowerSupplyPresent": false,
+            "Voltage": 26.561
+        },
+        "DistinctTags": {
+            "DistinctTags": 2187
+        },
+        "InventoryName": {
+            "Inventory": "2020-07-15_13-39-54"
+        },
+        "IsRunning": {
+            "IsRunning": false
+        },
+        "ModuleStatus": {
+            "Modules": [
+                {
+                    "Automatic": "Operation"
+                },
+                {
+                    "Docking": ""
+                },
+                {
+                    "HybridTraversal": "WAYP 46 / 50"
+                },
+                {
+                    "Location": "lynnwoodkmartmock (StoreSkeleton/StoreWaypoints)"
+                },
+                {
+                    "Navigation": ""
+                },
+                {
+                    "RFID Reader": "Mode 2 / 1 / 0 (running)"
+                },
+                {
+                    "Run-Quality": "90% (current: 100% | alternatives: 0, skipped: 0)"
+                },
+                {
+                    "Scheduler": "Job Started"
+                }
+            ]
+        },
+        "MotorStatus": {
+            "Status": "Bumper"
+        },
+        "Name": {
+            "RobotName": "TEST-TORY"
+        },
+        "RobotPose": {
+            "Pose": {
+                "Cov": [
+                    [
+                        0.001,
+                        0.000,
+                        0.000
+                    ],
+                    [
+                        0.000,
+                        0.000,
+                        0.000
+                    ],
+                    [
+                        0.000,
+                        0.000,
+                        0.001
+                    ]
+                ],
+                "Phi": -4.700,
+                "X": -3.418,
+                "Y": -1.402
+            }
+        },
+        "RuntimeStatus": {
+            "RuntimeStatus": "Finished"
+        }
+    },
+    "getAvailableLocations": {
+        "Locations": [
+            "lynnwoodkmartmock"
+        ]
+    },
+    "getMapMetaData": {
+        "CellSize": 0.050,
+        "Offset": {
+            "X": 276,
+            "Y": 327
+        }
+    },
+    "getInventoryDataBlockCount": {
+        "Count": 6
+    },
+    "getInventoryDataBlock": {
+        "Data": [
+            {
+                "Count": 377,
+                "FirstSeen": 1594845666,
+                "ID": "30363A22C43718C37E11D620",
+                "MaxRSSI": -46.000,
+                "MeanRSSI": -56.187,
+                "MinRSSI": -74.500,
+                "X": -5.323,
+                "Y": -5.726,
+                "Z": 0.939
+            },
+            {
+                "Count": 215,
+                "FirstSeen": 1594845667,
+                "ID": "30363A22C43718C37E11D621",
+                "MaxRSSI": -48.000,
+                "MeanRSSI": -53.512,
+                "MinRSSI": -71.000,
+                "X": -4.570,
+                "Y": -6.471,
+                "Z": 1.006
+            },
+            {
+                "Count": 101,
+                "FirstSeen": 1594845667,
+                "ID": "30363A22C43718C37E11D622",
+                "MaxRSSI": -46.000,
+                "MeanRSSI": -51.902,
+                "MinRSSI": -70.500,
+                "X": -4.829,
+                "Y": -7.593,
+                "Z": 1.217
+            },
+            {
+                "Count": 45,
+                "FirstSeen": 1594845790,
+                "ID": "30363A22C43718C37E11D62A",
+                "MaxRSSI": -54.500,
+                "MeanRSSI": -58.584,
+                "MinRSSI": -76.500,
+                "X": -4.099,
+                "Y": -8.657,
+                "Z": 1.329
+            },
+            {
+                "Count": 130,
+                "FirstSeen": 1594845664,
+                "ID": "30363A22C43718C37E11D62B",
+                "MaxRSSI": -44.500,
+                "MeanRSSI": -52.013,
+                "MinRSSI": -70.000,
+                "X": -4.204,
+                "Y": -7.214,
+                "Z": 1.182
+            },
+            {
+                "Count": 5,
+                "FirstSeen": 1594846575,
+                "ID": "30363A22C43719437E11D614",
+                "MaxRSSI": -66.500,
+                "MeanRSSI": -66.510,
+                "MinRSSI": -71.000,
+                "X": -4.336,
+                "Y": -1.292,
+                "Z": 1.848
+            },
+            {
+                "Count": 3,
+                "FirstSeen": 1594846558,
+                "ID": "30363A22C43719437E11D615",
+                "MaxRSSI": -65.000,
+                "MeanRSSI": -65.048,
+                "MinRSSI": -69.000,
+                "X": -3.920,
+                "Y": 0.678,
+                "Z": 1.850
+            },
+            {
+                "Count": 386,
+                "FirstSeen": 1594845662,
+                "ID": "30363A22C43719437E11D616",
+                "MaxRSSI": -39.000,
+                "MeanRSSI": -54.910,
+                "MinRSSI": -73.500,
+                "X": -4.493,
+                "Y": -4.685,
+                "Z": 1.089
+            },
+            {
+                "Count": 217,
+                "FirstSeen": 1594845663,
+                "ID": "30363A22C43719437E11D617",
+                "MaxRSSI": -46.000,
+                "MeanRSSI": -55.231,
+                "MinRSSI": -70.000,
+                "X": -4.150,
+                "Y": -5.020,
+                "Z": 1.094
+            },
+            {
+                "Count": 70,
+                "FirstSeen": 1594845662,
+                "ID": "30363A22C43719437E11D618",
+                "MaxRSSI": -51.500,
+                "MeanRSSI": -57.495,
+                "MinRSSI": -73.000,
+                "X": -3.013,
+                "Y": -6.516,
+                "Z": 1.353
+            },
+            {
+                "Count": 1,
+                "FirstSeen": 1594846632,
+                "ID": "30363A22C43719437E11D620",
+                "MaxRSSI": -65.000,
+                "MeanRSSI": -65.000,
+                "MinRSSI": -65.000,
+                "X": -4.081,
+                "Y": 0.651,
+                "Z": 1.850
+            },
+            {
+                "Count": 3,
+                "FirstSeen": 1594846598,
+                "ID": "30363A22C43719437E11D629",
+                "MaxRSSI": -67.000,
+                "MeanRSSI": -67.000,
+                "MinRSSI": -69.000,
+                "X": 3.128,
+                "Y": 0.267,
+                "Z": 1.850
+            }
+        ]
+    },
+    "getSchedule": {
+        "Schedule": [
+            {
+                "Index": 0,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 1,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockStore.tasks.xml",
+                "Weekday": 1
+            },
+            {
+                "Index": 1,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 1,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockStore.tasks.xml",
+                "Weekday": 2
+            },
+            {
+                "Index": 2,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 1,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockStore.tasks.xml",
+                "Weekday": 3
+            },
+            {
+                "Index": 3,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 1,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockStore.tasks.xml",
+                "Weekday": 4
+            },
+            {
+                "Index": 4,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 1,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockStore.tasks.xml",
+                "Weekday": 5
+            },
+            {
+                "Index": 5,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 1,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockStore.tasks.xml",
+                "Weekday": 6
+            },
+            {
+                "Index": 6,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 4,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockBOH.tasks.xml",
+                "Weekday": 0
+            },
+            {
+                "Index": 7,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 4,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockBOH.tasks.xml",
+                "Weekday": 1
+            },
+            {
+                "Index": 8,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 4,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockBOH.tasks.xml",
+                "Weekday": 2
+            },
+            {
+                "Index": 9,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 4,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockBOH.tasks.xml",
+                "Weekday": 3
+            },
+            {
+                "Index": 10,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 4,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockBOH.tasks.xml",
+                "Weekday": 4
+            },
+            {
+                "Index": 11,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 4,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockBOH.tasks.xml",
+                "Weekday": 5
+            },
+            {
+                "Index": 12,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 4,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockBOH.tasks.xml",
+                "Weekday": 6
+            },
+            {
+                "Index": 13,
+                "Location": {
+                    "Location": "lynnwoodkmartmock"
+                },
+                "RunDuration": 0,
+                "StartTime": {
+                    "Hour": 1,
+                    "Minute": 0
+                },
+                "Suspend": false,
+                "TaskConfig": "KmartMockStore.tasks.xml",
+                "Weekday": 0
+            }
+        ]
+    },
+    "webhook_getEventList": {
+        "Event": [
+            "Charging",
+            "RunStatus",
+            "MotorStatus",
+            "RunFinished"
+        ]
+    },
+    "getInventoryInformation": {
+        "EvaluationMapAvailable": true,
+        "Name": "2020-07-15_13-39-54",
+        "RunMapAvailable": true,
+        "RunQuality": {
+            "AlternativeWaypointCounter": 0,
+            "CurrentSuccessRate": 1.000,
+            "ReachedWaypointCounter": 50,
+            "SkippedWaypointsCounter": 0,
+            "TotalNumberOfWaypoints": 50,
+            "TotalSuccessRate": 1.000
+        },
+        "Statistics": {
+            "DistinctTags": 2934,
+            "Duration": 1140354,
+            "Location": "lynnwoodkmartmock",
+            "Mileage": 197.902,
+            "RobotName": "TEST-TORY",
+            "ScanArea": "StoreWaypoints",
+            "StartTime": "2020-Jul-15 20:40:09.963075",
+            "StopTime": "2020-Jul-15 20:59:10.317314"
+        },
+        "TaskScheduleItem": {
+            "LastStartTime": 1594845592010267000,
+            "Location": {
+                "Location": "lynnwoodkmartmock"
+            },
+            "RunDuration": 0,
+            "StartTime": {
+                "Filter": {
+                    "Suspend": false,
+                    "Weekday": 3
+                },
+                "Hours": 13,
+                "Minutes": 39,
+                "Seconds": 0
+            },
+            "TaskConfig": "KmartMockStore.tasks.xml"
+        }
+    },
+    "getInventoryName": {
+        "Inventory": "2020-07-15_13-39-54"
+    },
+    "getLocationDetails": {
+        "ScanAreas": [
+            "default",
+            "StoreSkeleton",
+            "BOHskeleton",
+            "StoreWaypoints",
+            "BOHwaypoints"
+        ],
+        "TaskConfigs": [
+            "KmartMockStore"
+        ]
+    },
+    "getInventoriesForLocation": {
+        "Inventorys": [
+            {
+                "EvaluationMapAvailable": true,
+                "InventoryMapAvailable": true,
+                "Name": "2020-07-07_04-00-02",
+                "RunMapAvailable": true,
+                "RunQuality": {
+                    "AlternativeWaypointCounter": 0,
+                    "CurrentSuccessRate": 1.000,
+                    "ReachedWaypointCounter": 45,
+                    "SkippedWaypointsCounter": 0,
+                    "TotalNumberOfWaypoints": 45,
+                    "TotalSuccessRate": 1.000
+                },
+                "Statistics": {
+                    "DistinctTags": 8063,
+                    "Duration": 2152759,
+                    "Location": "lynnwoodkmartmock",
+                    "Mileage": 169.502,
+                    "RobotName": "TEST-TORY",
+                    "ScanArea": "BOHwaypoints",
+                    "StartTime": "2020-Jul-07 11:00:17.687492",
+                    "StopTime": "2020-Jul-07 11:36:10.447260"
+                },
+                "TaskScheduleItem": {
+                    "LastStartTime": 1594119600087399000,
+                    "Location": {
+                        "Location": "lynnwoodkmartmock"
+                    },
+                    "RunDuration": 0,
+                    "StartTime": {
+                        "Filter": {
+                            "Suspend": false,
+                            "Weekday": 2
+                        },
+                        "Hours": 4,
+                        "Minutes": 0,
+                        "Seconds": 0
+                    },
+                    "TaskConfig": "KmartMockBOH.tasks.xml"
+                }
+            },
+            {
+                "EvaluationMapAvailable": true,
+                "InventoryMapAvailable": true,
+                "Name": "2020-06-29_19-23-28",
+                "RunMapAvailable": true,
+                "RunQuality": {
+                    "AlternativeWaypointCounter": 0,
+                    "CurrentSuccessRate": 1.000,
+                    "ReachedWaypointCounter": 30,
+                    "SkippedWaypointsCounter": 0,
+                    "TotalNumberOfWaypoints": 30,
+                    "TotalSuccessRate": 1.000
+                },
+                "Statistics": {
+                    "DistinctTags": 2638,
+                    "Duration": 662101,
+                    "Location": "lynnwoodkmartmock",
+                    "Mileage": 113.361,
+                    "RobotName": "TEST-TORY",
+                    "ScanArea": "StoreWaypoints",
+                    "StartTime": "2020-Jun-30 02:23:46.326369",
+                    "StopTime": "2020-Jun-30 02:34:48.427945"
+                }
+            },
+            {
+                "EvaluationMapAvailable": true,
+                "InventoryMapAvailable": true,
+                "Name": "2020-07-04_04-00-02",
+                "RunMapAvailable": true,
+                "RunQuality": {
+                    "AlternativeWaypointCounter": 0,
+                    "CurrentSuccessRate": 1.000,
+                    "ReachedWaypointCounter": 45,
+                    "SkippedWaypointsCounter": 0,
+                    "TotalNumberOfWaypoints": 45,
+                    "TotalSuccessRate": 1.000
+                },
+                "Statistics": {
+                    "DistinctTags": 7899,
+                    "Duration": 2992430,
+                    "Location": "lynnwoodkmartmock",
+                    "Mileage": 175.362,
+                    "RobotName": "TEST-TORY",
+                    "ScanArea": "BOHwaypoints",
+                    "StartTime": "2020-Jul-04 11:00:17.526470",
+                    "StopTime": "2020-Jul-04 11:50:09.956906"
+                }
+            },
+            {
+                "EvaluationMapAvailable": true,
+                "InventoryMapAvailable": true,
+                "Name": "2020-07-02_15-10-02",
+                "RunMapAvailable": true,
+                "RunQuality": {
+                    "AlternativeWaypointCounter": 0,
+                    "CurrentSuccessRate": 1.000,
+                    "ReachedWaypointCounter": 50,
+                    "SkippedWaypointsCounter": 0,
+                    "TotalNumberOfWaypoints": 50,
+                    "TotalSuccessRate": 1.000
+                },
+                "Statistics": {
+                    "DistinctTags": 3217,
+                    "Duration": 1175819,
+                    "Location": "lynnwoodkmartmock",
+                    "Mileage": 198.659,
+                    "RobotName": "TEST-TORY",
+                    "ScanArea": "StoreWaypoints",
+                    "StartTime": "2020-Jul-02 22:10:18.534726",
+                    "StopTime": "2020-Jul-02 22:29:54.354598"
+                }
+            },
+            {
+                "EvaluationMapAvailable": true,
+                "InventoryMapAvailable": true,
+                "Name": "2020-06-26_14-08-22",
+                "RunMapAvailable": true,
+                "RunQuality": {
+                    "AlternativeWaypointCounter": 0,
+                    "CurrentSuccessRate": 1.000,
+                    "ReachedWaypointCounter": 30,
+                    "SkippedWaypointsCounter": 0,
+                    "TotalNumberOfWaypoints": 30,
+                    "TotalSuccessRate": 1.000
+                },
+                "Statistics": {
+                    "DistinctTags": 2545,
+                    "Duration": 774099,
+                    "Location": "lynnwoodkmartmock",
+                    "Mileage": 134.230,
+                    "RobotName": "TEST-TORY",
+                    "ScanArea": "StoreWaypoints",
+                    "StartTime": "2020-Jun-26 21:08:37.328585",
+                    "StopTime": "2020-Jun-26 21:21:31.428179"
+                }
+            },
+            {
+                "EvaluationMapAvailable": true,
+                "InventoryMapAvailable": true,
+                "Name": "2020-06-29_10-54-02",
+                "RunMapAvailable": true,
+                "RunQuality": {
+                    "AlternativeWaypointCounter": 0,
+                    "CurrentSuccessRate": 1.000,
+                    "ReachedWaypointCounter": 29,
+                    "SkippedWaypointsCounter": 0,
+                    "TotalNumberOfWaypoints": 29,
+                    "TotalSuccessRate": 1.000
+                },
+                "Statistics": {
+                    "DistinctTags": 7467,
+                    "Duration": 828677,
+                    "Location": "lynnwoodkmartmock",
+                    "Mileage": 97.184,
+                    "RobotName": "TEST-TORY",
+                    "ScanArea": "BOHwaypoints",
+                    "StartTime": "2020-Jun-29 17:54:17.791611",
+                    "StopTime": "2020-Jun-29 18:08:06.469304"
+                }
+            },
+            {
+                "EvaluationMapAvailable": true,
+                "InventoryMapAvailable": true,
+                "Name": "2020-06-30_08-00-02",
+                "RunMapAvailable": true,
+                "RunQuality": {
+                    "AlternativeWaypointCounter": 0,
+                    "CurrentSuccessRate": 1.000,
+                    "ReachedWaypointCounter": 29,
+                    "SkippedWaypointsCounter": 0,
+                    "TotalNumberOfWaypoints": 29,
+                    "TotalSuccessRate": 1.000
+                },
+                "Statistics": {
+                    "DistinctTags": 7677,
+                    "Duration": 2055988,
+                    "Location": "lynnwoodkmartmock",
+                    "Mileage": 113.921,
+                    "RobotName": "TEST-TORY",
+                    "ScanArea": "BOHwaypoints",
+                    "StartTime": "2020-Jun-30 15:00:17.851882",
+                    "StopTime": "2020-Jun-30 15:34:33.840299"
+                }
+            },
+            {
+                "EvaluationMapAvailable": true,
+                "InventoryMapAvailable": true,
+                "Name": "2020-07-14_01-00-02",
+                "RunMapAvailable": true,
+                "RunQuality": {
+                    "AlternativeWaypointCounter": 0,
+                    "CurrentSuccessRate": 1.000,
+                    "ReachedWaypointCounter": 50,
+                    "SkippedWaypointsCounter": 0,
+                    "TotalNumberOfWaypoints": 50,
+                    "TotalSuccessRate": 1.000
+                },
+                "Statistics": {
+                    "DistinctTags": 3335,
+                    "Duration": 1194431,
+                    "Location": "lynnwoodkmartmock",
+                    "Mileage": 200.098,
+                    "RobotName": "TEST-TORY",
+                    "ScanArea": "StoreWaypoints",
+                    "StartTime": "2020-Jul-14 08:00:17.449239",
+                    "StopTime": "2020-Jul-14 08:20:11.880832"
+                },
+                "TaskScheduleItem": {
+                    "LastStartTime": 1594713600089259000,
+                    "Location": {
+                        "Location": "lynnwoodkmartmock"
+                    },
+                    "RunDuration": 0,
+                    "StartTime": {
+                        "Filter": {
+                            "Suspend": false,
+                            "Weekday": 2
+                        },
+                        "Hours": 1,
+                        "Minutes": 0,
+                        "Seconds": 0
+                    },
+                    "TaskConfig": "KmartMockStore.tasks.xml"
+                }
+            },
+            {
+                "EvaluationMapAvailable": false,
+                "InventoryMapAvailable": true,
+                "Name": "2020-07-12_04-00-02",
+                "RunMapAvailable": true,
+                "RunQuality": {
+                    "AlternativeWaypointCounter": 0,
+                    "CurrentSuccessRate": 1.000,
+                    "ReachedWaypointCounter": 45,
+                    "SkippedWaypointsCounter": 0,
+                    "TotalNumberOfWaypoints": 45,
+                    "TotalSuccessRate": 1.000
+                },
+                "Statistics": {
+                    "DistinctTags": 6675,
+                    "Duration": 2069543,
+                    "Location": "lynnwoodkmartmock",
+                    "Mileage": 158.423,
+                    "RobotName": "TEST-TORY",
+                    "ScanArea": "BOHwaypoints",
+                    "StartTime": "2020-Jul-12 11:00:21.987414",
+                    "StopTime": "2020-Jul-12 11:34:51.531239"
+                },
+                "TaskScheduleItem": {
+                    "LastStartTime": 1594551600241554000,
+                    "Location": {
+                        "Location": "lynnwoodkmartmock"
+                    },
+                    "RunDuration": 0,
+                    "StartTime": {
+                        "Filter": {
+                            "Suspend": false,
+                            "Weekday": 0
+                        },
+                        "Hours": 4,
+                        "Minutes": 0,
+                        "Seconds": 0
+                    },
+                    "TaskConfig": "KmartMockBOH.tasks.xml"
+                }
+            },
+            {
+                "EvaluationMapAvailable": false,
+                "InventoryMapAvailable": true,
+                "Name": "2020-07-01_16-40-16",
+                "RunMapAvailable": true,
+                "RunQuality": {
+                    "AlternativeWaypointCounter": 0,
+                    "CurrentSuccessRate": 1.000,
+                    "ReachedWaypointCounter": 29,
+                    "SkippedWaypointsCounter": 0,
+                    "TotalNumberOfWaypoints": 29,
+                    "TotalSuccessRate": 1.000
+                },
+                "Statistics": {
+                    "DistinctTags": 7524,
+                    "Duration": 876492,
+                    "Location": "lynnwoodkmartmock",
+                    "Mileage": 98.300,
+                    "RobotName": "TEST-TORY",
+                    "ScanArea": "BOHwaypoints",
+                    "StartTime": "2020-Jul-01 23:40:31.701312",
+                    "StopTime": "2020-Jul-01 23:55:08.194085"
+                }
+            },
+            {
+                "EvaluationMapAvailable": true,
+                "InventoryMapAvailable": true,
+                "Name": "2020-06-29_19-11-20",
+                "RunMapAvailable": true,
+                "RunQuality": {
+                    "AlternativeWaypointCounter": 0,
+                    "CurrentSuccessRate": 1.000,
+                    "ReachedWaypointCounter": 30,
+                    "SkippedWaypointsCounter": 0,
+                    "TotalNumberOfWaypoints": 30,
+                    "TotalSuccessRate": 1.000
+                },
+                "Statistics": {
+                    "DistinctTags": 2801,
+                    "Duration": 668015,
+                    "Location": "lynnwoodkmartmock",
+                    "Mileage": 113.903,
+                    "RobotName": "TEST-TORY",
+                    "ScanArea": "StoreWaypoints",
+                    "StartTime": "2020-Jun-30 02:11:38.635374",
+                    "StopTime": "2020-Jun-30 02:22:46.651255"
+                }
+            },
+            {
+                "EvaluationMapAvailable": true,
+                "InventoryMapAvailable": true,
+                "Name": "2020-07-02_12-01-09",
+                "RunMapAvailable": true,
+                "RunQuality": {
+                    "AlternativeWaypointCounter": 0,
+                    "CurrentSuccessRate": 1.000,
+                    "ReachedWaypointCounter": 50,
+                    "SkippedWaypointsCounter": 0,
+                    "TotalNumberOfWaypoints": 50,
+                    "TotalSuccessRate": 1.000
+                },
+                "Statistics": {
+                    "DistinctTags": 3211,
+                    "Duration": 1164114,
+                    "Location": "lynnwoodkmartmock",
+                    "Mileage": 192.788,
+                    "RobotName": "TEST-TORY",
+                    "ScanArea": "StoreWaypoints",
+                    "StartTime": "2020-Jul-02 19:01:25.814439",
+                    "StopTime": "2020-Jul-02 19:20:49.928961"
+                }
+            },
+            {
+                "EvaluationMapAvailable": true,
+                "InventoryMapAvailable": true,
+                "Name": "2020-07-05_01-00-02",
+                "RunMapAvailable": true,
+                "RunQuality": {
+                    "AlternativeWaypointCounter": 0,
+                    "CurrentSuccessRate": 1.000,
+                    "ReachedWaypointCounter": 50,
+                    "SkippedWaypointsCounter": 0,
+                    "TotalNumberOfWaypoints": 50,
+                    "TotalSuccessRate": 1.000
+                },
+                "Statistics": {
+                    "DistinctTags": 3402,
+                    "Duration": 1578275,
+                    "Location": "lynnwoodkmartmock",
+                    "Mileage": 186.561,
+                    "RobotName": "TEST-TORY",
+                    "ScanArea": "StoreWaypoints",
+                    "StartTime": "2020-Jul-05 08:00:18.005342",
+                    "StopTime": "2020-Jul-05 08:26:36.280950"
+                }
+            }
+        ]
+    }
+}

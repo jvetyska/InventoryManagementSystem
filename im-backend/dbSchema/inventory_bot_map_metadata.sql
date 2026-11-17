@@ -1,0 +1,21 @@
+CREATE TABLE `inventory_bot_map_metadata` (
+  `MapID` int NOT NULL,
+  `DepartmentID` varchar(3) NOT NULL,
+  `XCenter` float DEFAULT NULL,
+  `YCenter` float DEFAULT NULL,
+  `XCenterImage` int DEFAULT NULL,
+  `YCenterImage` int DEFAULT NULL,
+  `Radius` float DEFAULT NULL,
+  `RadiusImage` float DEFAULT NULL,
+  `Point1X` float DEFAULT NULL,
+  `Point2X` float DEFAULT NULL,
+  `Point1Y` float DEFAULT NULL,
+  `Point2Y` float DEFAULT NULL,
+  `ImageLeft` int DEFAULT NULL,
+  `ImageTop` int DEFAULT NULL,
+  `ImageWidth` int DEFAULT NULL,
+  `ImageHeight` int DEFAULT NULL,
+  `DateCreated` datetime DEFAULT CURRENT_TIMESTAMP,
+  `DateUpdated` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`MapID`,`DepartmentID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

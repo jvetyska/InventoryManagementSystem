@@ -1,0 +1,598 @@
+Parameters:
+  ClientName:
+    Type: String
+    Default: kmart
+    Description: Name of the client
+  FullyQualifiedURLDev:
+    Type: String
+    Default: kmart-dev.anko.com
+    Description: The fully qualified URL for the Development environment
+  FullyQualifiedURLUat:
+    Type: String
+    Default: kmart-uat.anko.com
+    Description: The fully qualified URL for the UAT environment
+  FullyQualifiedURLProd:
+    Type: String
+    Default: kmart.anko.com
+    Description: The fully qualified URL for the Production environment
+  HostedZoneDev:
+    Type: 'AWS::Route53::HostedZone::Id'
+    Description: Development apex domain
+  HostedZoneUat:
+    Type: 'AWS::Route53::HostedZone::Id'
+    Description: Staging apex domain
+  HostedZoneProd:
+    Type: 'AWS::Route53::HostedZone::Id'
+    Description: Production apex domain
+Resources:
+  CertificateDev:
+    Type: 'AWS::CertificateManager::Certificate'
+    Properties:
+      DomainName: !Ref FullyQualifiedURLDev
+      CertificateTransparencyLoggingPreference: ENABLED
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref FullyQualifiedURLDev
+          HostedZoneId: !Ref HostedZoneDev
+  CertificateProd:
+    Type: 'AWS::CertificateManager::Certificate'
+    Properties:
+      DomainName: !Ref FullyQualifiedURLProd
+      CertificateTransparencyLoggingPreference: ENABLED
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref FullyQualifiedURLProd
+          HostedZoneId: !Ref HostedZoneProd
+  CertificateUat:
+    Type: 'AWS::CertificateManager::Certificate'
+    Properties:
+      DomainName: !Ref FullyQualifiedURLUat
+      CertificateTransparencyLoggingPreference: ENABLED
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref FullyQualifiedURLUat
+          HostedZoneId: !Ref HostedZoneUat
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub 'VPC-${ClientName}'
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+  InternetGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  SubnetPrivate1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: ap-southeast-2a
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: private-subnet-1
+  SubnetPrivate2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: ap-southeast-2b
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: private-subnet-2
+  SubnetPrivate3:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: ap-southeast-2c
+      CidrBlock: 10.0.3.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: private-subnet-3
+  SubnetPublic1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: ap-southeast-2a
+      CidrBlock: 10.0.11.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: public-subnet-1
+  SubnetPublic2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: ap-southeast-2b
+      CidrBlock: 10.0.12.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: public-subnet-2
+  SubnetPublic3:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: ap-southeast-2c
+      CidrBlock: 10.0.13.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: public-subnet-3
+  NatGatewayPrivateEIP:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+  NatGatewayPrivateEIP2:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+  NatGatewayPrivateEIP3:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+  NatGatewayPrivate:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt NatGatewayPrivateEIP.AllocationId
+      SubnetId: !Ref SubnetPublic1
+  NatGatewayPrivate2:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt NatGatewayPrivateEIP2.AllocationId
+      SubnetId: !Ref SubnetPublic2
+  NatGatewayPrivate3:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt NatGatewayPrivateEIP3.AllocationId
+      SubnetId: !Ref SubnetPublic3
+  RouteTablePublic:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: public-rt
+  RouteTablePrivate:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: private-rt
+  RouteTablePrivate2:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: private-rt-2
+  RouteTablePrivate3:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: private-rt-3
+  RoutePublic:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      GatewayId: !Ref InternetGateway
+      DestinationCidrBlock: 0.0.0.0/0
+  RoutePrivate:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate
+      NatGatewayId: !Ref NatGatewayPrivate
+      DestinationCidrBlock: 0.0.0.0/0
+  RoutePrivate2:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate2
+      NatGatewayId: !Ref NatGatewayPrivate2
+      DestinationCidrBlock: 0.0.0.0/0
+  RoutePrivate3:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate3
+      NatGatewayId: !Ref NatGatewayPrivate3
+      DestinationCidrBlock: 0.0.0.0/0
+  SubnetPrivateRouteTableAssociation1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate
+      SubnetId: !Ref SubnetPrivate1
+  SubnetPrivateRouteTableAssociation2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate2
+      SubnetId: !Ref SubnetPrivate2
+  SubnetPrivateRouteTableAssociation3:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate3
+      SubnetId: !Ref SubnetPrivate3
+  SubnetRouteTableAssociationPublic1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref SubnetPublic1
+  SubnetRouteTableAssociationPublic2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref SubnetPublic2
+  SubnetRouteTableAssociationPublic3:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref SubnetPublic3
+  SGVPCEndpoint:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Security group for VPC Endpoint
+      GroupName: SGVPCEndpoint
+      SecurityGroupIngress:
+        - IpProtocol: TCP
+          CidrIp: 0.0.0.0/0
+          FromPort: 443
+          ToPort: 444
+      SecurityGroupEgress:
+        - IpProtocol: TCP
+          CidrIp: 0.0.0.0/0
+          FromPort: 443
+          ToPort: 444
+  EndpointServiceDev:
+    Type: 'AWS::EC2::VPCEndpointService'
+    Properties:
+      AcceptanceRequired: false
+      NetworkLoadBalancerArns:
+        - !Ref NetworkLoadBalancerDev
+  EndpointServiceUat:
+    Type: 'AWS::EC2::VPCEndpointService'
+    Properties:
+      AcceptanceRequired: false
+      NetworkLoadBalancerArns:
+        - !Ref NetworkLoadBalancerUat
+  EndpointServiceProd:
+    Type: 'AWS::EC2::VPCEndpointService'
+    Properties:
+      AcceptanceRequired: false
+      NetworkLoadBalancerArns:
+        - !Ref NetworkLoadBalancerProd
+  NetworkLoadBalancerDev:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Name: !Sub 'NLB-Dev-${ClientName}'
+      Type: network
+      IpAddressType: ipv4
+      Scheme: internal
+      Subnets:
+        - !Ref SubnetPrivate1
+        - !Ref SubnetPrivate2
+        - !Ref SubnetPrivate3
+      LoadBalancerAttributes:
+        - Key: load_balancing.cross_zone.enabled
+          Value: true
+  NetworkLoadBalancerProd:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Name: !Sub 'NLB-Prod-${ClientName}'
+      Type: network
+      IpAddressType: ipv4
+      Scheme: internal
+      Subnets:
+        - !Ref SubnetPrivate1
+        - !Ref SubnetPrivate2
+        - !Ref SubnetPrivate3
+      LoadBalancerAttributes:
+        - Key: load_balancing.cross_zone.enabled
+          Value: true
+  NetworkLoadBalancerUat:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Name: !Sub 'NLB-Uat-${ClientName}'
+      Type: network
+      IpAddressType: ipv4
+      Scheme: internal
+      Subnets:
+        - !Ref SubnetPrivate1
+        - !Ref SubnetPrivate2
+        - !Ref SubnetPrivate3
+      LoadBalancerAttributes:
+        - Key: load_balancing.cross_zone.enabled
+          Value: true
+  ListenerDev:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      LoadBalancerArn: !Ref NetworkLoadBalancerDev
+      Port: 443
+      Protocol: TLS
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroupDev
+      Certificates:
+        - CertificateArn: !Ref CertificateDev
+  ListenerUat:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      LoadBalancerArn: !Ref NetworkLoadBalancerUat
+      Port: 443
+      Protocol: TLS
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroupUat
+      Certificates:
+        - CertificateArn: !Ref CertificateUat
+  ListenerProd:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      LoadBalancerArn: !Ref NetworkLoadBalancerProd
+      Port: 443
+      Protocol: TLS
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroupProd
+      Certificates:
+        - CertificateArn: !Ref CertificateProd
+  TargetGroupDev:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Name: NLB-TG-Dev
+      HealthCheckIntervalSeconds: 10
+      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: TCP
+      TargetType: ip
+      VpcId: !Ref VPC
+  TargetGroupUat:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Name: NLB-TG-Uat
+      HealthCheckIntervalSeconds: 10
+      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: TCP
+      TargetType: ip
+      VpcId: !Ref VPC
+  TargetGroupProd:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Name: NLB-TG-Prod
+      HealthCheckIntervalSeconds: 10
+      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: TCP
+      TargetType: ip
+      VpcId: !Ref VPC
+  NetworkLoadBalancerDevPublic:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Name: !Sub 'NLB-Dev-${ClientName}-Public'
+      Type: network
+      IpAddressType: ipv4
+      Scheme: internet-facing
+      Subnets:
+        - !Ref SubnetPublic1
+        - !Ref SubnetPublic2
+        - !Ref SubnetPublic3
+      LoadBalancerAttributes:
+        - Key: load_balancing.cross_zone.enabled
+          Value: true
+  NetworkLoadBalancerUatPublic:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Name: !Sub 'NLB-Uat-${ClientName}-Public'
+      Type: network
+      IpAddressType: ipv4
+      Scheme: internet-facing
+      Subnets:
+        - !Ref SubnetPublic1
+        - !Ref SubnetPublic2
+        - !Ref SubnetPublic3
+      LoadBalancerAttributes:
+        - Key: load_balancing.cross_zone.enabled
+          Value: true
+  NetworkLoadBalancerProdPublic:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Name: !Sub 'NLB-Prod-${ClientName}-Public'
+      Type: network
+      IpAddressType: ipv4
+      Scheme: internet-facing
+      Subnets:
+        - !Ref SubnetPublic1
+        - !Ref SubnetPublic2
+        - !Ref SubnetPublic3
+      LoadBalancerAttributes:
+        - Key: load_balancing.cross_zone.enabled
+          Value: true
+  TargetGroupDevPublic:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Name: NLB-TG-Dev-Public
+      HealthCheckIntervalSeconds: 10
+      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: TCP
+      TargetType: ip
+      VpcId: !Ref VPC
+  TargetGroupUatPublic:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Name: NLB-TG-Uat-Public
+      HealthCheckIntervalSeconds: 10
+      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: TCP
+      TargetType: ip
+      VpcId: !Ref VPC
+  TargetGroupProdPublic:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Name: NLB-TG-Prod-Public
+      HealthCheckIntervalSeconds: 10
+      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: TCP
+      TargetType: ip
+      VpcId: !Ref VPC
+  ListenerDevPublic:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      LoadBalancerArn: !Ref NetworkLoadBalancerDevPublic
+      Port: 443
+      Protocol: TLS
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroupDevPublic
+      Certificates:
+        - CertificateArn: !Ref CertificateDev
+  ListenerUatPublic:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      LoadBalancerArn: !Ref NetworkLoadBalancerUatPublic
+      Port: 443
+      Protocol: TLS
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroupUatPublic
+      Certificates:
+        - CertificateArn: !Ref CertificateUat
+  ListenerProdPublic:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      LoadBalancerArn: !Ref NetworkLoadBalancerProdPublic
+      Port: 443
+      Protocol: TLS
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroupProdPublic
+      Certificates:
+        - CertificateArn: !Ref CertificateProd
+Outputs:
+  VPCID:
+    Description: The VPC of the base stack
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VPC'
+  SubnetPrivateID1:
+    Description: The first private subnet of the base stack
+    Value: !Ref SubnetPrivate1
+    Export:
+      Name: !Sub '${AWS::StackName}-Private-Subnet-1'
+  SubnetPrivateID2:
+    Description: The second private subnet of the base stack
+    Value: !Ref SubnetPrivate2
+    Export:
+      Name: !Sub '${AWS::StackName}-Private-Subnet-2'
+  SubnetPrivateID3:
+    Description: The third private subnet of the base stack
+    Value: !Ref SubnetPrivate3
+    Export:
+      Name: !Sub '${AWS::StackName}-Private-Subnet-3'
+  SubnetPublicID1:
+    Description: The first public subnet of the base stack
+    Value: !Ref SubnetPublic1
+    Export:
+      Name: !Sub '${AWS::StackName}-Public-Subnet-1'
+  SubnetPublicID2:
+    Description: The second public subnet of the base stack
+    Value: !Ref SubnetPublic2
+    Export:
+      Name: !Sub '${AWS::StackName}-Public-Subnet-2'
+  EndpointServiceDevID:
+    Description: The second public subnet of the base stack
+    Value: !Ref EndpointServiceDev
+    Export:
+      Name: !Sub '${AWS::StackName}-Endpoint-Service-Dev'
+  EndpointServiceUatID:
+    Description: The second public subnet of the base stack
+    Value: !Ref EndpointServiceUat
+    Export:
+      Name: !Sub '${AWS::StackName}-Endpoint-Service-Uat'
+  EndpointServiceProdID:
+    Description: The second public subnet of the base stack
+    Value: !Ref EndpointServiceProd
+    Export:
+      Name: !Sub '${AWS::StackName}-Endpoint-Service-Prod'
+  NetworkLoadBalancerDevPublicDNS:
+    Description: DNS Name for the Public Load Balancer for the Development environment
+    Value: !GetAtt NetworkLoadBalancerDevPublic.DNSName
+    Export:
+      Name: !Sub '${AWS::StackName}-NLB-DNS-dev'
+  NetworkLoadBalancerDevPublicZone:
+    Description: >-
+      Hosted Zone ID for the Public Load Balancer for the Development
+      environment
+    Value: !GetAtt NetworkLoadBalancerDevPublic.CanonicalHostedZoneID
+    Export:
+      Name: !Sub '${AWS::StackName}-NLB-Host-dev'
+  NetworkLoadBalancerUatPublicDNS:
+    Description: DNS Name for the Public Load Balancer for the Staging environment
+    Value: !GetAtt NetworkLoadBalancerUatPublic.DNSName
+    Export:
+      Name: !Sub '${AWS::StackName}-NLB-DNS-uat'
+  NetworkLoadBalancerUatPublicZone:
+    Description: Hosted Zone ID for the Public Load Balancer for the Staging environment
+    Value: !GetAtt NetworkLoadBalancerUatPublic.CanonicalHostedZoneID
+    Export:
+      Name: !Sub '${AWS::StackName}-NLB-Host-uat'
+  NetworkLoadBalancerProdPublicDNS:
+    Description: DNS Name for the Public Load Balancer for the Production environment
+    Value: !GetAtt NetworkLoadBalancerProdPublic.DNSName
+    Export:
+      Name: !Sub '${AWS::StackName}-NLB-DNS-prod'
+  NetworkLoadBalancerProdPublicZone:
+    Description: Hosted Zone ID for the Public Load Balancer for the Production environment
+    Value: !GetAtt NetworkLoadBalancerProdPublic.CanonicalHostedZoneID
+    Export:
+      Name: !Sub '${AWS::StackName}-NLB-Host-prod'
+  TargetGroupDevID:
+    Description: Network Load Balancer Target Group for the Development environment
+    Value: !Ref TargetGroupDev
+    Export:
+      Name: !Sub '${AWS::StackName}-Target-Group-dev'
+  TargetGroupUatID:
+    Description: Network Load Balancer Target Group for the Staging environment
+    Value: !Ref TargetGroupUat
+    Export:
+      Name: !Sub '${AWS::StackName}-Target-Group-uat'
+  TargetGroupProdID:
+    Description: Network Load Balancer Target Group for the Production environment
+    Value: !Ref TargetGroupProd
+    Export:
+      Name: !Sub '${AWS::StackName}-Target-Group-prod'
+  TargetGroupDevPublicID:
+    Description: Public Network Load Balancer Target Group for the Development environment
+    Value: !Ref TargetGroupDevPublic
+    Export:
+      Name: !Sub '${AWS::StackName}-Target-Group-dev-Public'
+  TargetGroupUatPublicID:
+    Description: Public Network Load Balancer Target Group for the Staging environment
+    Value: !Ref TargetGroupUatPublic
+    Export:
+      Name: !Sub '${AWS::StackName}-Target-Group-uat-Public'
+  TargetGroupProdPublicID:
+    Description: Public Network Load Balancer Target Group for the Production environment
+    Value: !Ref TargetGroupProdPublic
+    Export:
+      Name: !Sub '${AWS::StackName}-Target-Group-prod-Public'

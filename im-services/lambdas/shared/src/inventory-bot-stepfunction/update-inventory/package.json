@@ -1,0 +1,12 @@
+{
+    "name": "update-inventory",
+    "version": "1.0.0",
+    "description": "update-inventory lambda attached with tory data processing step function for updating inventory",
+    "dependencies": {},
+    "license": "ISC",
+    "repository": {
+      "type": "git",
+      "url": "https://bitbucket.org/ankous/anko_microservices"
+    }
+  }
+  

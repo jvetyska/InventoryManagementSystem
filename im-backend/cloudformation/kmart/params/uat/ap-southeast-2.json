@@ -1,0 +1,82 @@
+[
+    {
+      "ParameterKey": "ClientName",
+      "ParameterValue": "kmart"
+    },
+    {
+      "ParameterKey": "EnvironmentType",
+      "ParameterValue": "uat"
+    },
+    {
+      "ParameterKey": "KeyName",
+      "ParameterValue": "kmart-engineering-access"
+    },
+    {
+      "ParameterKey": "ECSInstanceType",
+      "ParameterValue": "t3a.large"
+    },
+    {
+      "ParameterKey": "MaxSize",
+      "ParameterValue": "4"
+    },
+    {
+      "ParameterKey": "ECSClusterDesiredCapacity",
+      "ParameterValue": "1"
+    },
+    {
+      "ParameterKey": "DesiredCount",
+      "ParameterValue": "1"
+    },
+    {
+      "ParameterKey": "BaseStack",
+      "ParameterValue": "kmart-stack"
+    },
+    {
+      "ParameterKey": "NginxImage",
+      "ParameterValue": "495621338632.dkr.ecr.ap-southeast-2.amazonaws.com/kmart-uat-nginx-repo:v_%BUILD_NUMBER%"
+    },
+    {
+      "ParameterKey": "AnkousImage",
+      "ParameterValue": "495621338632.dkr.ecr.ap-southeast-2.amazonaws.com/kmart-uat-ankous-repo:v_%BUILD_NUMBER%"
+    },
+    {
+      "ParameterKey": "AnkousContainerPort3000",
+      "ParameterValue": "3000"
+    },
+    {
+      "ParameterKey": "AnkousContainerPort3306",
+      "ParameterValue": "3306"
+    },
+    {
+      "ParameterKey": "NginxContainerPort80",
+      "ParameterValue": "80"
+    },
+    {
+      "ParameterKey": "NginxContainerPort443",
+      "ParameterValue": "443"
+    },
+    {
+      "ParameterKey": "AnkousContainerMemory",
+      "ParameterValue": "1024"
+    },
+    {
+      "ParameterKey": "NginxContainerMemory",
+      "ParameterValue": "512"
+    },
+    {
+      "ParameterKey": "XrayDaemonMemory",
+      "ParameterValue": "256"
+    },
+    {
+      "ParameterKey": "XrayContainerPort2000",
+      "ParameterValue": "2000"
+    },
+    {
+      "ParameterKey": "XrayContainerProtocol",
+      "ParameterValue": "udp"
+    },
+    {
+        "ParameterKey": "LogLevel",
+        "ParameterValue": "info"
+    }
+  ]

@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "aws-sdk": "^2.593.0",
+    "aws-xray-sdk": "^3.3.3",
+    "axios": "^0.19.1",
+    "ejs": "^3.0.1",
+    "json2csv": "^5.0.5",
+    "moment": "^2.24.0",
+    "moment-timezone": "^0.5.27",
+    "mysql2": "^2.2.5",
+    "uuid": "^3.4.0",
+    "winston": "^3.3.3",
+    "winston-namespace": "^1.0.0",
+    "mssql": "^7.2.1"
+  }
+}

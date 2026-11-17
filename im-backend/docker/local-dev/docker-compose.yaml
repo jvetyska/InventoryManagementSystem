@@ -1,0 +1,79 @@
+# Use root/example as user/password credentials
+version: '3.1'
+
+services:
+  wmsdb:
+    image: mysql:8.0.23
+    command: mysqld --sql_mode="NO_ENGINE_SUBSTITUTION"
+    volumes:
+      - ./mysql/data:/import
+      - ../../dbSchema:/dbSchema
+      - ./mysql/config/mysql-docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    environment:
+      MYSQL_ROOT_USER: root
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: ankowhm
+    healthcheck:
+      test: "mysqladmin ping --silent"
+    ports:
+      - 3307:3306
+
+  adminer:
+    image: adminer
+    ports:
+      - 8080:8080
+
+  localstack: 
+    image: localstack/localstack
+    volumes: 
+      - "${TEMPDIR:-/tmp/localstack}:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - ./localstack/config/docker-entrypoint-initaws.d/:/docker-entrypoint-initaws.d
+      - ./localstack/secretsmanager/:/secretsmanager
+      - ./localstack/dynamodb/:/dynamodb
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s localhost:4566/health | grep '\"initScripts\": \"initialized\"' || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 10s
+    ports:
+      - 4566:4566
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      HOSTNAME_EXTERNAL: localstack
+      DEFAULT_REGION: ap-southeast-2
+      DOCKER_HOST: unix:///var/run/docker.sock
+      SERVICES: s3,s3api,secretsmanager,sns,sqs #,dynamodb,dynamodbstreams <- disabled the dynamodb service as it does not work on M1
+      IMAGE_BUCKET: dev-images
+      LOG_BUCKET: dev-logging
+      CSV_BUCKET: dev-csv-backup
+      REPORT_BUCKET: dev-wms-reports
+      REPLENISH_BUCKET: dev-replenish-case-to-task-logs
+      DEBUG: "1"
+
+  wmsapi:
+    build: 
+      context: ../../
+      dockerfile: ./docker/local-dev/Dockerfile-wmsapi
+    volumes:
+      - ../../:/wmsapi #currently copying the whole repository as repo will be divided and file structure will change.
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      API_HOST: http://localhost:3000
+      AWS_ENDPOINT: http://localstack:4566
+      ENV_TYPE: local-dev
+      DB_HOST: wmsdb
+      LOG_LEVEL: debug
+      LOG_NAMESPACES: "*"
+    depends_on:
+      wmsdb:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: "exit 0"
+    ports:
+      - 3000:3000

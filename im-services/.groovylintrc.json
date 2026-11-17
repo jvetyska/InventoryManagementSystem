@@ -1,0 +1,16 @@
+{
+    "extends": "recommended",
+    "rules": {
+        "comments.ClassJavadoc": "off",
+        "convention.CompileStatic": "off",
+        "dry.DuplicateStringLiteral": "off",
+        "formatting.Indentation": {
+            "spacesPerIndentLevel": 2,
+            "severity": "info"
+        },
+        "formatting.LineLength": "off",
+        "Size.NestedBlockDepth": "off",
+        "unnecessary.UnnecessaryObjectReferences": "off",
+        "UnnecessaryReturnKeyword": "error"
+    }
+}

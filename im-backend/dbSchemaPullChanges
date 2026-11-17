@@ -1,0 +1,11 @@
+#!/bin/bash
+
+cd "dbSchema"
+
+skeema pull development --password="AnkoDev1234=" --debug
+
+echo "------------------------------- GETTING SKEEMA DIFF FOR ANKO PRODUCTION -------------------------------"
+#skeema diff production --password="Anko1234=" --allow-unsafe=true --debug
+
+#echo "------------------------------- GETTING SKEEMA DIFF FOR ANKO KMART PRODUCTION -------------------------------"
+#skeema diff anko-kmart-production  --password=csOWLBkMzD6Ge3ZM4lVi --allow-unsafe=true --debug

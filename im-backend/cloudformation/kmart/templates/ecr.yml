@@ -1,0 +1,139 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  ClientName:
+    Type: String
+    Description: The name of the client. This should be the same name across all dev, uat, and prod environments
+    Default: kmart
+  EnvironmentType:
+    Type: String
+    Description: The environment type. This must be dev, uat, or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - uat
+      - prod
+
+Resources:
+  # Elastic Container Registry
+  RepositoryNginx:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub '${ClientName}-${EnvironmentType}-nginx-repo'
+      RepositoryPolicyText:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowPushAndPull
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action:
+              - 'ecr:PutImage'
+              - 'ecr:InitiateLayerUpload'
+              - 'ecr:UploadLayerPart'
+              - 'ecr:CompleteLayerUpload'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+            {
+              "rulePriority": 1,
+              "description": "Keep only 10 image, Expire all other images",
+              "selection": {
+                "tagStatus": "any",
+                "countType": "imageCountMoreThan",
+                "countNumber": 10
+              },
+              "action": { "type": "expire" }
+            }]
+          }
+
+  RepositoryAnkous:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub '${ClientName}-${EnvironmentType}-ankous-repo'
+      RepositoryPolicyText:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowPushAndPull
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action:
+              - 'ecr:PutImage'
+              - 'ecr:InitiateLayerUpload'
+              - 'ecr:UploadLayerPart'
+              - 'ecr:CompleteLayerUpload'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+            {
+              "rulePriority": 1,
+              "description": "Keep only 10 image, Expire all other images",
+              "selection": {
+                "tagStatus": "any",
+                "countType": "imageCountMoreThan",
+                "countNumber": 10
+              },
+              "action": { "type": "expire" }
+            }]
+          }
+
+  # Repository for Kafka lambda image upload
+  RepositoryKafkaLambda:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub '${ClientName}-${EnvironmentType}-kafka-lambda'
+      RepositoryPolicyText:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowPushAndPull
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action:
+              - 'ecr:PutImage'
+              - 'ecr:InitiateLayerUpload'
+              - 'ecr:UploadLayerPart'
+              - 'ecr:CompleteLayerUpload'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+            {
+              "rulePriority": 1,
+              "description": "Keep only 10 image, Expire all other images",
+              "selection": {
+                "tagStatus": "any",
+                "countType": "imageCountMoreThan",
+                "countNumber": 10
+              },
+              "action": { "type": "expire" }
+            }]
+          }
+
+Outputs:
+  AnkousRepo:
+    Description: "Ankous Repo"
+    Value: !Ref RepositoryAnkous
+    Export:
+      Name: !Sub ${AWS::StackName}::AnkousRepo
+  NginxRepo:
+    Description: "Nginx Repo"
+    Value: !Ref RepositoryNginx
+    Export:
+      Name: !Sub ${AWS::StackName}::NginxRepo
+  KafkaLambdaRepo:
+    Description: "Kafka Docker Image Lambda Repo"
+    Value: !Ref RepositoryKafkaLambda
+    Export:
+      Name: !Sub ${AWS::StackName}::KafkaLambdaRepo

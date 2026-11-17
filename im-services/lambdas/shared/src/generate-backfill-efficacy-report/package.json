@@ -1,0 +1,11 @@
+{
+  "name": "generate-backfill-efficacy-report",
+  "version": "1.0.0",
+  "description": "Generate backfill efficacy reports",
+  "dependencies": {},
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/ankous/anko_microservices"
+  }
+}

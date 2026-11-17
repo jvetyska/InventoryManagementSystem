@@ -1,0 +1,152 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 30
+    buildToolsVersion "30.0.2"
+
+    def versionPropsFile = file('version.properties')
+
+    // only increases the version on release
+    increaseVersionCode()
+    if (versionPropsFile.canRead()) {
+        def Properties versionProps = new Properties()
+        versionProps.load(new FileInputStream(versionPropsFile))
+        def name = versionProps['VERSION_NAME']
+        def code = versionProps['VERSION_CODE'].toInteger()
+        versionProps['VERSION_CODE']=code.toString()
+        versionProps.store(versionPropsFile.newWriter(), null)
+
+        defaultConfig {
+            applicationId "com.anko.rfid.ankowms"
+            versionName name
+            versionCode code
+            minSdkVersion 21
+            targetSdkVersion 30
+            testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        }
+    }
+    else {
+        throw new GradleException("Could not read version.properties!")
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            minifyEnabled false
+        }
+    }
+    flavorDimensions "wms"
+    productFlavors {
+        KMART {
+            applicationId "com.anko.rfid.ankowms"
+            dimension "wms"
+            ext {
+                variable = [debug: "https://kmart-uat.anko.com", release: "http://kmart-prod.anko.com"]
+                setproxy = "false"
+                defaultURL = "https://kmart.anko.com"
+                uatURL = "https://kmart-uat.anko.com"
+                devURL = "https://kmart-dev.anko.com"
+            }
+        }
+        ANKO {
+            applicationId "com.anko.rfid.ankowms"
+            dimension "wms"
+            ext {
+                variable = [debug: "https://kmart-dev.anko.com", release: "http://wms.anko.com"]
+                setproxy = "false"
+                defaultURL = "https://wms-dev.anko.com"
+                uatURL = "https://wms-dev.anko.com"
+                devURL = "https://wms-dev.anko.com"
+            }
+        }
+        "KMART-HAMILTON" {
+            //https://app.nonprod.dosasvt.a-kmtkmg.net
+            applicationId "com.anko.rfid.ankowms"
+            dimension "wms"
+            ext {
+                variable = [debug: "https://app.dev.dosadev.a-kmtkmg.net", release: "https://app.prod.dosaprod.a-kmtkmg.net"]
+                setproxy = "false"
+                defaultURL = "https://app.prod.dosaprod.a-kmtkmg.net"
+                uatURL = "https://app.nonprod.dosauat.a-kmtkmg.net"
+                devURL = "https://app.dev.dosadev.a-kmtkmg.net"
+            }
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    android.applicationVariants.all { variant ->
+        def uatStoreList = getUATStoresGrepGroup()
+        def flavor = variant.flavorName
+        def productFlavors = variant.productFlavors[0]
+        variant.buildConfigField("String", "BASEURL", "\"${productFlavors.variable[variant.buildType.name]}\"")
+        variant.buildConfigField("Boolean", "SETPROXY", "${productFlavors.setproxy}")
+        variant.buildConfigField("String", "DEFAULT_URL", "\"${productFlavors.defaultURL}\"")
+        variant.buildConfigField("String", "DEV_URL", "\"${productFlavors.devURL}\"")
+        variant.buildConfigField("String", "UAT_URL", "\"${productFlavors.uatURL}\"")
+        variant.buildConfigField("String", "uatPattern", "\"^(${uatStoreList})\$\"")
+        variant.buildConfigField("String", "devPattern", "\"^19\\\\d{2}\$\"")
+        variant.outputs.all { output ->
+            def builtType = variant.buildType.name
+            def versionName = variant.versionName
+            def versionCode = variant.versionCode
+            outputFileName = "${flavor}-TeamConnector-${builtType}-${versionName}.${versionCode}.apk"
+        }
+    }
+}
+
+dependencies {
+
+    implementation fileTree(dir: "libs", include: ["*.jar"])
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
+    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
+    implementation 'androidx.navigation:navigation-fragment:2.3.1'
+    implementation 'androidx.navigation:navigation-ui:2.3.1'
+    implementation 'com.google.code.gson:gson:2.8.6'
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.2'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
+    implementation 'org.ini4j:ini4j:0.5.4'
+    implementation "com.squareup.retrofit2:retrofit:2.9.0"
+    implementation "com.squareup.retrofit2:converter-gson:2.9.0"
+    implementation("com.squareup.okhttp3:logging-interceptor:4.9.0")
+    implementation project(':RFID_API_3')
+}
+def increaseVersionCode() {
+    def versionPropsFile = file('version.properties')
+    gradle.taskGraph.whenReady { taskGraph ->
+        if (taskGraph.hasTask(assembleKMARTRelease) || taskGraph.hasTask(assembleKMART-HAMILTONRelease)) {
+            /* when run release task */
+            if (versionPropsFile.canRead()) {
+                def Properties versionProps = new Properties()
+                versionProps.load(new FileInputStream(versionPropsFile))
+                def build = versionProps['VERSION_BUILD'].toInteger() + 1
+                def code = versionProps['VERSION_CODE'].toInteger() + 1
+                versionProps['VERSION_BUILD'] = build.toString()
+                versionProps['VERSION_CODE'] = code.toString()
+                versionProps.store(versionPropsFile.newWriter(), null)
+            } else {
+                throw new GradleException("Could not read version.properties!")
+            }
+        }
+    }
+}
+
+String getUATStoresGrepGroup() {
+    File file = file('UAT.stores')
+    def line, noOfLines = 0;
+    def pattern = ''
+    file.withReader { reader ->
+        pattern = reader.readLine();
+        while ((line = reader.readLine()) != null) {
+            pattern += '|' + line
+        }
+    }
+    return pattern;
+}

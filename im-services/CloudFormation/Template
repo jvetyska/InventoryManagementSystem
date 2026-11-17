@@ -1,0 +1,1408 @@
+Parameters:
+  CertificateARN:
+    Type: String
+    Default: >-
+      arn:aws:acm:us-east-1:490619545857:certificate/5a58594b-35cf-48e5-af9b-69866a996716
+  DomainName:
+    Type: String
+    Default: placeholder-url.site
+  HostedZoneID:
+    Type: String
+    Default: Z0432881X0FOJZKFB8I4
+  VpcID:
+    Type: String
+    Default: vpc-03d0063ad4c266732
+Metadata:
+  'AWS::CloudFormation::Designer':
+    0a424ea7-71c2-4ee8-aa6c-55c78fafabb6:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 40
+        'y': 110
+      z: 2
+      parent: 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+      embeds: []
+      iscontainedinside:
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+    75bf7d9c-84c9-4aa6-943c-9952e69a09c3:
+      size:
+        width: 220
+        height: 290
+      position:
+        x: 30
+        'y': 90
+      z: 1
+      embeds:
+        - 98911988-7dd7-41eb-8598-372074ae3a58
+        - e1b8d1b3-a2d2-4e7c-955b-8a7448b2652f
+        - caa69a13-13c4-4eac-8b9b-df995a9d2a8f
+        - 0dc4791e-98dd-4336-b6a1-c0389de47782
+        - 0a424ea7-71c2-4ee8-aa6c-55c78fafabb6
+    0dc4791e-98dd-4336-b6a1-c0389de47782:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 110
+        'y': 110
+      z: 2
+      parent: 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+      embeds: []
+      iscontainedinside:
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+    98911988-7dd7-41eb-8598-372074ae3a58:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 110
+        'y': 310
+      z: 2
+      parent: 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+      embeds: []
+    e1b8d1b3-a2d2-4e7c-955b-8a7448b2652f:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 110
+        'y': 210
+      z: 2
+      parent: 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+      embeds: []
+      isassociatedwith:
+        - 98911988-7dd7-41eb-8598-372074ae3a58
+    caa69a13-13c4-4eac-8b9b-df995a9d2a8f:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 180
+        'y': 110
+      z: 2
+      parent: 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+      embeds: []
+      iscontainedinside:
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+        - 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+    1f2795ce-6663-4134-8cd1-a5d654b3c102:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 460
+        'y': 90
+      z: 1
+      embeds: []
+      isassociatedwith:
+        - c1518b88-9e70-43db-a04d-d137154eed82
+        - 94fac087-fade-4197-93d5-c8132c2e108a
+        - 05468ebd-0384-4b8e-b17f-48a6227ae526
+    13c89910-a38b-467f-ab66-dc017b96294e:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 260
+        'y': 90
+      z: 1
+      embeds: []
+      isassociatedwith:
+        - c1518b88-9e70-43db-a04d-d137154eed82
+        - 94fac087-fade-4197-93d5-c8132c2e108a
+        - 05468ebd-0384-4b8e-b17f-48a6227ae526
+    d77b65c5-22d0-4592-a64f-43078fa0d665:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 360
+        'y': 90
+      z: 1
+      embeds: []
+      isassociatedwith:
+        - 13c89910-a38b-467f-ab66-dc017b96294e
+    ae1b1474-299a-41d7-a5fe-587417667dfd:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 360
+        'y': 230
+      z: 1
+      embeds: []
+    b7325195-c7c9-439c-8c0a-2c95939b50b7:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 260
+        'y': 230
+      z: 1
+      embeds: []
+    884c0762-cc8b-4c75-aad1-0826a05f08e3:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 360
+        'y': 300
+      z: 1
+      embeds: []
+    0cda440c-4d9a-4565-ac97-454b2fa452b1:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 460
+        'y': 300
+      z: 1
+      embeds: []
+    8e4532ec-15ed-461e-9b86-04c0c3ab0225:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 260
+        'y': 300
+      z: 1
+      embeds: []
+    1c450ed2-b8fb-4303-8dfa-28676fb47447:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 460
+        'y': 230
+      z: 1
+      embeds: []
+    c06bad44-aadd-485d-b302-e3c67b03c5a7:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 360
+        'y': 160
+      z: 1
+      embeds: []
+    cd07e9e0-8cc7-4e18-aff2-4a416e096418:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 460
+        'y': 160
+      z: 1
+      embeds: []
+    28fb270d-e5b9-4bf0-aa58-90ee883adb07:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 260
+        'y': 160
+      z: 1
+      embeds: []
+    c8f2cceb-581c-4fc5-a2c6-225e79937706:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 130
+        'y': 390
+      z: 1
+      embeds: []
+    a11322bb-a657-4747-8e84-aa6ee9c5d181:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 230
+        'y': 390
+      z: 1
+      embeds: []
+    44412a08-1f1d-4506-a8ee-2c202e508e14:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 330
+        'y': 390
+      z: 1
+      embeds: []
+    4c2d59dd-547b-4ebd-b319-ca6b4ecbc7ec:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 30
+        'y': 390
+      z: 1
+      embeds: []
+      isassociatedwith:
+        - c8f2cceb-581c-4fc5-a2c6-225e79937706
+    8e2c6d88-85a0-43d1-9b4e-81c365ad1611:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 130
+        'y': 460
+      z: 1
+      embeds: []
+    f77cca0f-4621-4e63-8d9f-9aaa769cfb1f:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 230
+        'y': 460
+      z: 1
+      embeds: []
+    3fe2198e-b7c2-4c9f-a76a-94550df20d4c:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 330
+        'y': 460
+      z: 1
+      embeds: []
+    7fa4ca86-236c-4c0e-a823-e0efc35ac2fe:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 30
+        'y': 460
+      z: 1
+      embeds: []
+      isassociatedwith:
+        - 8e2c6d88-85a0-43d1-9b4e-81c365ad1611
+    c1518b88-9e70-43db-a04d-d137154eed82:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 360
+        'y': 20
+      z: 0
+      embeds: []
+    94fac087-fade-4197-93d5-c8132c2e108a:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 360
+        'y': -50
+      z: 0
+      embeds: []
+    05468ebd-0384-4b8e-b17f-48a6227ae526:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 360
+        'y': -120
+      z: 0
+      embeds: []
+Resources:
+  AnkoWarehouseProd:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceClass: db.t3.medium
+      AllocatedStorage: '100'
+      AllowMajorVersionUpgrade: true
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: '31'
+      CopyTagsToSnapshot: true
+      DBInstanceIdentifier: anko-warehouse
+      DBName: ankowhm
+      DeleteAutomatedBackups: false
+      DeletionProtection: true
+      EnableCloudwatchLogsExports:
+        - error
+        - slowquery
+      Engine: mysql
+      EngineVersion: 8.0.19
+      MasterUsername: admin
+      MasterUserPassword: csOWLBkMzD6Ge3ZM4lVi
+      MonitoringInterval: 0
+      Port: '3306'
+      PreferredMaintenanceWindow: 'sun:06:00-sun:06:30'
+      PreferredBackupWindow: '06:30-07:00'
+      PubliclyAccessible: true
+      StorageEncrypted: false
+      StorageType: gp2
+      DBParameterGroupName: !Ref DBParameterGroup
+      VPCSecurityGroups:
+        - !Ref SecurityGroupRDSv4
+        - !Ref SecurityGroupRDSv6
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 13c89910-a38b-467f-ab66-dc017b96294e
+  AnkoWarehouseRo:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceClass: db.t3.medium
+      AllocatedStorage: '100'
+      AllowMajorVersionUpgrade: true
+      AutoMinorVersionUpgrade: true
+      DBInstanceIdentifier: anko-warehouse-ro
+      DeleteAutomatedBackups: false
+      DeletionProtection: true
+      EnableCloudwatchLogsExports:
+        - slowquery
+      Engine: mysql
+      EngineVersion: 8.0.19
+      MonitoringInterval: 0
+      Port: '3306'
+      PreferredMaintenanceWindow: 'sun:06:00-sun:06:30'
+      PubliclyAccessible: true
+      StorageEncrypted: false
+      StorageType: gp2
+      SourceDBInstanceIdentifier: !Ref AnkoWarehouseProd
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: d77b65c5-22d0-4592-a64f-43078fa0d665
+  AnkoWarehouseDev:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: '100'
+      AllowMajorVersionUpgrade: true
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: '10'
+      CopyTagsToSnapshot: false
+      DBInstanceIdentifier: anko-warehouse-dev
+      DBName: ankowhm
+      DeleteAutomatedBackups: false
+      DeletionProtection: true
+      EnableCloudwatchLogsExports:
+        - error
+        - slowquery
+      Engine: mysql
+      EngineVersion: 8.0.19
+      MasterUsername: admin
+      MasterUserPassword: csOWLBkMzD6Ge3ZM4lVi
+      MonitoringInterval: 0
+      Port: '3306'
+      PreferredMaintenanceWindow: 'sun:06:00-sun:06:30'
+      PreferredBackupWindow: '06:30-07:00'
+      PubliclyAccessible: true
+      StorageEncrypted: false
+      StorageType: gp2
+      DBParameterGroupName: !Ref DBParameterGroup
+      VPCSecurityGroups:
+        - !Ref SecurityGroupRDSv4
+        - !Ref SecurityGroupRDSv6
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 1f2795ce-6663-4134-8cd1-a5d654b3c102
+  ApiDev:
+    Type: 'AWS::ElasticBeanstalk::Environment'
+    Properties:
+      ApplicationName: !Ref anko
+      EnvironmentName: api-dev
+      SolutionStackName: 64bit Amazon Linux 2 v5.0.2 running Node.js 12
+      Tier:
+        Name: WebServer
+        Type: Standard
+      OptionSettings:
+        - Namespace: 'aws:autoscaling:launchconfiguration'
+          OptionName: InstanceType
+          Value: t3a.micro
+        - Namespace: 'aws:autoscaling:launchconfiguration'
+          OptionName: IamInstanceProfile
+          Value: !Ref AnkoInstanceProfile
+        - Namespace: 'aws:elasticbeanstalk:environment:proxy:staticfiles'
+          OptionName: /public
+          Value: public
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: API_HOST
+          Value: 'https://api-dev.example.com'
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: SQL_HOST
+          Value: abc-def-ghi.TESTING.us-west-1.rds.amazonaws.com
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: SQL_PASSWORD
+          Value: TEMP_SECRET_PASS
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 0a424ea7-71c2-4ee8-aa6c-55c78fafabb6
+  anko:
+    Type: 'AWS::ElasticBeanstalk::Application'
+    Properties:
+      ApplicationName: anko
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 75bf7d9c-84c9-4aa6-943c-9952e69a09c3
+  ApiProd:
+    Type: 'AWS::ElasticBeanstalk::Environment'
+    Properties:
+      ApplicationName: !Ref anko
+      EnvironmentName: api-prod
+      SolutionStackName: 64bit Amazon Linux 2 v5.0.2 running Node.js 12
+      Tier:
+        Name: WebServer
+        Type: Standard
+      OptionSettings:
+        - Namespace: 'aws:autoscaling:launchconfiguration'
+          OptionName: InstanceType
+          Value: t3a.medium
+        - Namespace: 'aws:autoscaling:launchconfiguration'
+          OptionName: IamInstanceProfile
+          Value: !Ref AnkoInstanceProfile
+        - Namespace: 'aws:elasticbeanstalk:environment:proxy:staticfiles'
+          OptionName: /public
+          Value: public
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: API_HOST
+          Value: 'https://api-dev.example.com'
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: SQL_HOST
+          Value: abc-def-ghi.TESTING.us-west-1.rds.amazonaws.com
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: SQL_PASSWORD
+          Value: TEMP_SECRET_PASS
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 0dc4791e-98dd-4336-b6a1-c0389de47782
+  AnkoRoleEC2:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: TestAmazonS3FullAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 's3:*'
+                Resource: '*'
+        - PolicyName: TestAWSElasticBeanstalkWebTier
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: BucketAccess
+                Action:
+                  - 's3:Get*'
+                  - 's3:List*'
+                  - 's3:PutObject'
+                Effect: Allow
+                Resource:
+                  - 'arn:aws:s3:::elasticbeanstalk-*'
+                  - 'arn:aws:s3:::elasticbeanstalk-*/*'
+              - Sid: XRayAccess
+                Action:
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                  - 'xray:GetSamplingRules'
+                  - 'xray:GetSamplingTargets'
+                  - 'xray:GetSamplingStatisticSummaries'
+                Effect: Allow
+                Resource: '*'
+              - Sid: CloudWatchLogsAccess
+                Action:
+                  - 'logs:PutLogEvents'
+                  - 'logs:CreateLogStream'
+                  - 'logs:DescribeLogStreams'
+                  - 'logs:DescribeLogGroups'
+                Effect: Allow
+                Resource:
+                  - 'arn:aws:logs:*:*:log-group:/aws/elasticbeanstalk*'
+        - PolicyName: TestAWSElasticBeanstalkFullAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'elasticbeanstalk:*'
+                  - 'ec2:*'
+                  - 'ecs:*'
+                  - 'ecr:*'
+                  - 'elasticloadbalancing:*'
+                  - 'autoscaling:*'
+                  - 'cloudwatch:*'
+                  - 's3:*'
+                  - 'sns:*'
+                  - 'cloudformation:*'
+                  - 'dynamodb:*'
+                  - 'rds:*'
+                  - 'sqs:*'
+                  - 'logs:*'
+                  - 'iam:GetPolicyVersion'
+                  - 'iam:GetRole'
+                  - 'iam:PassRole'
+                  - 'iam:ListRolePolicies'
+                  - 'iam:ListAttachedRolePolicies'
+                  - 'iam:ListInstanceProfiles'
+                  - 'iam:ListRoles'
+                  - 'iam:ListServerCertificates'
+                  - 'acm:DescribeCertificate'
+                  - 'acm:ListCertificates'
+                  - 'codebuild:CreateProject'
+                  - 'codebuild:DeleteProject'
+                  - 'codebuild:BatchGetBuilds'
+                  - 'codebuild:StartBuild'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'iam:AddRoleToInstanceProfile'
+                  - 'iam:CreateInstanceProfile'
+                  - 'iam:CreateRole'
+                Resource:
+                  - 'arn:aws:iam::*:role/aws-elasticbeanstalk*'
+                  - 'arn:aws:iam::*:instance-profile/aws-elasticbeanstalk*'
+              - Effect: Allow
+                Action:
+                  - 'iam:CreateServiceLinkedRole'
+                Resource:
+                  - >-
+                    arn:aws:iam::*:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling*
+                Condition:
+                  StringLike:
+                    'iam:AWSServiceName': autoscaling.amazonaws.com
+              - Effect: Allow
+                Action:
+                  - 'iam:CreateServiceLinkedRole'
+                Resource:
+                  - >-
+                    arn:aws:iam::*:role/aws-service-role/elasticbeanstalk.amazonaws.com/AWSServiceRoleForElasticBeanstalk*
+                Condition:
+                  StringLike:
+                    'iam:AWSServiceName': elasticbeanstalk.amazonaws.com
+              - Effect: Allow
+                Action:
+                  - 'iam:CreateServiceLinkedRole'
+                Resource:
+                  - >-
+                    arn:aws:iam::*:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing*
+                Condition:
+                  StringLike:
+                    'iam:AWSServiceName': elasticloadbalancing.amazonaws.com
+              - Effect: Allow
+                Action:
+                  - 'iam:AttachRolePolicy'
+                Resource: 'arn:aws:iam::*:role/aws-elasticbeanstalk*'
+                Condition:
+                  StringLike:
+                    'iam:PolicyArn':
+                      - 'arn:aws:iam::aws:policy/AWSElasticBeanstalk*'
+                      - >-
+                        arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalk*
+        - PolicyName: TestAWSElasticBeanstalkMulticontainerDocker
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: ECSAccess
+                Effect: Allow
+                Action:
+                  - 'ecs:Poll'
+                  - 'ecs:StartTask'
+                  - 'ecs:StopTask'
+                  - 'ecs:DiscoverPollEndpoint'
+                  - 'ecs:StartTelemetrySession'
+                  - 'ecs:RegisterContainerInstance'
+                  - 'ecs:DeregisterContainerInstance'
+                  - 'ecs:DescribeContainerInstances'
+                  - 'ecs:Submit*'
+                  - 'ecs:DescribeTasks'
+                Resource: '*'
+        - PolicyName: TestAWSElasticBeanstalkWorkerTier
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: MetricsAccess
+                Action:
+                  - 'cloudwatch:PutMetricData'
+                Effect: Allow
+                Resource: '*'
+              - Sid: XRayAccess
+                Action:
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                  - 'xray:GetSamplingRules'
+                  - 'xray:GetSamplingTargets'
+                  - 'xray:GetSamplingStatisticSummaries'
+                Effect: Allow
+                Resource: '*'
+              - Sid: QueueAccess
+                Action:
+                  - 'sqs:ChangeMessageVisibility'
+                  - 'sqs:DeleteMessage'
+                  - 'sqs:ReceiveMessage'
+                  - 'sqs:SendMessage'
+                Effect: Allow
+                Resource: '*'
+              - Sid: BucketAccess
+                Action:
+                  - 's3:Get*'
+                  - 's3:List*'
+                  - 's3:PutObject'
+                Effect: Allow
+                Resource:
+                  - 'arn:aws:s3:::elasticbeanstalk-*'
+                  - 'arn:aws:s3:::elasticbeanstalk-*/*'
+              - Sid: DynamoPeriodicTasks
+                Action:
+                  - 'dynamodb:BatchGetItem'
+                  - 'dynamodb:BatchWriteItem'
+                  - 'dynamodb:DeleteItem'
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:Query'
+                  - 'dynamodb:Scan'
+                  - 'dynamodb:UpdateItem'
+                Effect: Allow
+                Resource:
+                  - >-
+                    arn:aws:dynamodb:*:*:table/*-stack-AWSEBWorkerCronLeaderRegistry*
+              - Sid: CloudWatchLogsAccess
+                Action:
+                  - 'logs:PutLogEvents'
+                  - 'logs:CreateLogStream'
+                Effect: Allow
+                Resource:
+                  - 'arn:aws:logs:*:*:log-group:/aws/elasticbeanstalk*'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 98911988-7dd7-41eb-8598-372074ae3a58
+  AnkoInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Roles:
+        - !Ref AnkoRoleEC2
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: e1b8d1b3-a2d2-4e7c-955b-8a7448b2652f
+  ApiStaging:
+    Type: 'AWS::ElasticBeanstalk::Environment'
+    Properties:
+      ApplicationName: !Ref anko
+      EnvironmentName: api-staging
+      SolutionStackName: 64bit Amazon Linux 2 v5.0.2 running Node.js 12
+      Tier:
+        Name: WebServer
+        Type: Standard
+      OptionSettings:
+        - Namespace: 'aws:autoscaling:launchconfiguration'
+          OptionName: InstanceType
+          Value: t3a.micro
+        - Namespace: 'aws:autoscaling:launchconfiguration'
+          OptionName: IamInstanceProfile
+          Value: !Ref AnkoInstanceProfile
+        - Namespace: 'aws:elasticbeanstalk:environment:proxy:staticfiles'
+          OptionName: /public
+          Value: public
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: API_HOST
+          Value: 'https://api-dev.example.com'
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: SQL_HOST
+          Value: abc-def-ghi.TESTING.us-west-1.rds.amazonaws.com
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: SQL_PASSWORD
+          Value: TEMP_SECRET_PASS
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: caa69a13-13c4-4eac-8b9b-df995a9d2a8f
+  AnkoPerformanceReports:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: anko-performance-reports
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: Date
+        - KeyType: RANGE
+          AttributeName: Location
+      AttributeDefinitions:
+        - AttributeName: Date
+          AttributeType: S
+        - AttributeName: Location
+          AttributeType: S
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 28fb270d-e5b9-4bf0-aa58-90ee883adb07
+  InventoryLog:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: inventory_log
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: Date
+        - KeyType: RANGE
+          AttributeName: UUID
+      AttributeDefinitions:
+        - AttributeName: Date
+          AttributeType: S
+        - AttributeName: UUID
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: cd07e9e0-8cc7-4e18-aff2-4a416e096418
+  PerformanceReport:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: performance_report
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: ReportDate
+        - KeyType: RANGE
+          AttributeName: InsertDate
+      AttributeDefinitions:
+        - AttributeName: ReportDate
+          AttributeType: S
+        - AttributeName: InsertDate
+          AttributeType: S
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: '10'
+        WriteCapacityUnits: '10'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: c06bad44-aadd-485d-b302-e3c67b03c5a7
+  ProcessingUpstreamLogDev:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: processing-upstream-log-dev
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: Date
+        - KeyType: RANGE
+          AttributeName: UUID
+      AttributeDefinitions:
+        - AttributeName: Date
+          AttributeType: S
+        - AttributeName: UUID
+          AttributeType: S
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 1c450ed2-b8fb-4303-8dfa-28676fb47447
+  TaskLog:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: task_log
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: Date
+        - KeyType: RANGE
+          AttributeName: UUID
+      AttributeDefinitions:
+        - AttributeName: Date
+          AttributeType: S
+        - AttributeName: UUID
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 8e4532ec-15ed-461e-9b86-04c0c3ab0225
+  TaskLogDev:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: task_log_dev
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: Date
+        - KeyType: RANGE
+          AttributeName: UUID
+      AttributeDefinitions:
+        - AttributeName: Date
+          AttributeType: S
+        - AttributeName: UUID
+          AttributeType: S
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 0cda440c-4d9a-4565-ac97-454b2fa452b1
+  TaskLogRaw:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: task_log_raw
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: Year
+        - KeyType: RANGE
+          AttributeName: DateStart
+      AttributeDefinitions:
+        - AttributeName: Year
+          AttributeType: 'N'
+        - AttributeName: DateStart
+          AttributeType: S
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: '10'
+        WriteCapacityUnits: '10'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 884c0762-cc8b-4c75-aad1-0826a05f08e3
+  UpstreamHistoryLog:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: upstream-history-log
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: Date
+        - KeyType: RANGE
+          AttributeName: UUID
+      AttributeDefinitions:
+        - AttributeName: Date
+          AttributeType: S
+        - AttributeName: UUID
+          AttributeType: S
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: b7325195-c7c9-439c-8c0a-2c95939b50b7
+  UpstreamHistoryLogDev:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: upstream-history-log-dev
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: Date
+        - KeyType: RANGE
+          AttributeName: UUID
+      AttributeDefinitions:
+        - AttributeName: Date
+          AttributeType: S
+        - AttributeName: UUID
+          AttributeType: S
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: ae1b1474-299a-41d7-a5fe-587417667dfd
+  AnkomartWhmDev:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      AccessControl: PublicRead
+      BucketName: ankomart-whm-dev
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: c8f2cceb-581c-4fc5-a2c6-225e79937706
+  AnkomartWhmDevPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref AnkomartWhmDev
+      PolicyDocument:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPublicRead
+            Effect: Allow
+            Principal:
+              AWS: '*'
+            Action: 's3:GetObject'
+            Resource: 'arn:aws:s3:::ankomart-whm-dev/*'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 4c2d59dd-547b-4ebd-b319-ca6b4ecbc7ec
+  CloudFrontAnkomartWhmDev:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Sub 'wms-dev.${DomainName}'
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - POST
+            - PATCH
+            - DELETE
+          CachedMethods:
+            - GET
+            - HEAD
+          ForwardedValues:
+            QueryString: false
+          Compress: false
+          MinTTL: 0
+          MaxTTL: 31536000
+          DefaultTTL: 86400
+          SmoothStreaming: false
+          TargetOriginId: !Ref AnkomartWhmDev
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: ''
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        ViewerCertificate:
+          SslSupportMethod: sni-only
+          AcmCertificateArn: !Ref CertificateARN
+          MinimumProtocolVersion: TLSv1.2_2018
+        Origins:
+          - Id: !Ref AnkomartWhmDev
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginKeepaliveTimeout: 10
+              OriginProtocolPolicy: https-only
+              OriginReadTimeout: 10
+              OriginSSLProtocols:
+                - TLSv1.2
+            DomainName: !GetAtt 
+              - AnkomartWhmDev
+              - DomainName
+            ConnectionAttempts: 3
+            ConnectionTimeout: 10
+        PriceClass: PriceClass_All
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: a11322bb-a657-4747-8e84-aa6ee9c5d181
+  RecordSetWmsDev:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      Type: CNAME
+      HostedZoneId: !Ref HostedZoneID
+      Name: !Sub 'wms-dev.${DomainName}'
+      TTL: '60'
+      ResourceRecords:
+        - !GetAtt 
+          - CloudFrontAnkomartWhmDev
+          - DomainName
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 44412a08-1f1d-4506-a8ee-2c202e508e14
+  AnkomartWhm:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      AccessControl: PublicRead
+      BucketName: ankomart-whm
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 8e2c6d88-85a0-43d1-9b4e-81c365ad1611
+  AnkomartWhmPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref AnkomartWhm
+      PolicyDocument:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPublicRead
+            Effect: Allow
+            Principal:
+              AWS: '*'
+            Action: 's3:GetObject'
+            Resource: 'arn:aws:s3:::ankomart-whm/*'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 7fa4ca86-236c-4c0e-a823-e0efc35ac2fe
+  RecordSetWms:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      Type: CNAME
+      HostedZoneId: !Ref HostedZoneID
+      Name: !Sub 'wms.${DomainName}'
+      TTL: '60'
+      ResourceRecords:
+        - !GetAtt 
+          - CloudFrontAnkomartWhm
+          - DomainName
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 3fe2198e-b7c2-4c9f-a76a-94550df20d4c
+  SecurityGroupRDSv4:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: !Ref VpcID
+      GroupDescription: Security Group for relational databases
+      SecurityGroupIngress:
+        - IpProtocol: TCP
+          CidrIp: 0.0.0.0/0
+          FromPort: 3306
+          ToPort: 3306
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: c1518b88-9e70-43db-a04d-d137154eed82
+  SecurityGroupRDSv6:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: !Ref VpcID
+      GroupDescription: Security Group for relational databases
+      SecurityGroupIngress:
+        - IpProtocol: TCP
+          CidrIpv6: '::/0'
+          FromPort: 3306
+          ToPort: 3306
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIpv6: '::/0'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 94fac087-fade-4197-93d5-c8132c2e108a
+  DBParameterGroup:
+    Type: 'AWS::RDS::DBParameterGroup'
+    Properties:
+      Description: Allows you to upload schema files with functions
+      Family: mysql8.0
+      Parameters:
+        log_bin_trust_function_creators: 1
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 05468ebd-0384-4b8e-b17f-48a6227ae526
+  CloudFrontAnkomartWhm:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Sub 'wms.${DomainName}'
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - POST
+            - PATCH
+            - DELETE
+          CachedMethods:
+            - GET
+            - HEAD
+          ForwardedValues:
+            QueryString: false
+          Compress: false
+          MinTTL: 0
+          MaxTTL: 31536000
+          DefaultTTL: 86400
+          SmoothStreaming: false
+          TargetOriginId: S3-Website-ankomart-whm.s3-website-us-west-1.amazonaws.com
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: ''
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        PriceClass: PriceClass_All
+        ViewerCertificate:
+          SslSupportMethod: sni-only
+          AcmCertificateArn: !Ref CertificateARN
+          MinimumProtocolVersion: TLSv1.2_2018
+        Origins:
+          - Id: S3-Website-ankomart-whm.s3-website-us-west-1.amazonaws.com
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+            DomainName: ankomart-whm.s3-website-us-west-1.amazonaws.com
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: f77cca0f-4621-4e63-8d9f-9aaa769cfb1f

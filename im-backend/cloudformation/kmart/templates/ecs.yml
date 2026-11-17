@@ -1,0 +1,471 @@
+Parameters:
+  BaseStack:
+    Type: String
+    Description: The name of the CloudFormation base stack which includes all networking resources
+    Default: kmart-stack
+  ClientName:
+    Type: String
+    Description: The name of the client. This should be the same name across all dev, staging, and prod environments
+    Default: kmart
+  EnvironmentType:
+    Type: String
+    Description: The environment type. This must be dev, uat, or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - uat
+      - prod
+  KeyName:
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the ECS instances
+    Default: kmart-engineering-access
+  ECSInstanceType:
+    Type: String
+    Description: EC2 Instance Type
+  MaxSize:
+    Type: Number
+    Description: Maximum number of instances that can be launched in your ECS cluster.
+  ECSClusterDesiredCapacity:
+    Type: Number
+    Description: Number of instances to launch in your ECS cluster.
+  NginxContainerMemory:
+    Type: Number
+  AnkousContainerMemory:
+    Type: Number
+  NginxImage:
+    Type: String
+  AnkousImage:
+    Type: String
+  NginxContainerPort80:
+    Type: Number
+  NginxContainerPort443:
+    Type: Number
+  AnkousContainerPort3000:
+    Type: Number
+  AnkousContainerPort3306:
+      Type: Number
+  DesiredCount:
+    Type: Number
+  XrayDaemonMemory:
+    Type: Number
+  XrayContainerPort2000:
+    Type: Number
+  XrayContainerProtocol:
+    Type: String
+  LogLevel:
+    Type: String
+    AllowedValues:
+      - error
+      - warn
+      - info
+      - debug
+      - silly
+
+Mappings:
+  AWSRegionToAMI:
+    ap-southeast-2:
+      AMI:  ami-0310be5230f55bb3d
+
+Resources:
+  SGServiceNetwork:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClientName}-${EnvironmentType}-Service'
+      GroupName: !Sub '${ClientName}-${EnvironmentType}-Service'
+      GroupDescription: 'SG for the autoScaling launch configuration and ECS service'
+      VpcId: !ImportValue
+        'Fn::Sub': '${BaseStack}-VPC'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+  ExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub '${ClientName}-${EnvironmentType}-ExecutionRole'
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: 'sts:AssumeRole'
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Effect: Allow
+                Resource: '*'
+          PolicyName: !Sub '${ClientName}-${EnvironmentType}-ECSSecretManagerAccess'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
+        - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSQSFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSESFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSNSFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonKinesisFirehoseFullAccess'
+
+  EC2Role:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub '${ClientName}-${EnvironmentType}-EC2Role'
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: ecs-service
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ecs:CreateCluster'
+                  - 'ecs:DeregisterContainerInstance'
+                  - 'ecs:DiscoverPollEndpoint'
+                  - 'ecs:Poll'
+                  - 'ecs:RegisterContainerInstance'
+                  - 'ecs:StartTelemetrySession'
+                  - 'ecs:Submit*'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: '*'
+
+  EC2InstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      InstanceProfileName: !Sub '${ClientName}-${EnvironmentType}-EC2Profile'
+      Roles:
+        - !Ref EC2Role
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub '${ClientName}-${EnvironmentType}-Cluster'
+
+  LogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: !Sub '${ClientName}-${EnvironmentType}-cluster-logs'
+      RetentionInDays: 14
+
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !ImportValue
+          'Fn::Sub': '${BaseStack}-Private-Subnet-1'
+        - !ImportValue
+          'Fn::Sub': '${BaseStack}-Private-Subnet-2'
+        - !ImportValue
+          'Fn::Sub': '${BaseStack}-Private-Subnet-3'
+      LaunchConfigurationName: !Ref LaunchConfiguration
+      MinSize: '1'
+      MaxSize: !Ref 'MaxSize'
+      DesiredCapacity: !Ref ECSClusterDesiredCapacity
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime: PT15M
+
+  LaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !FindInMap [AWSRegionToAMI, !Ref 'AWS::Region', AMI]
+      InstanceType: !Ref ECSInstanceType
+      SecurityGroups:
+        - !Ref SGServiceNetwork
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      KeyName: !Ref KeyName
+      BlockDeviceMappings:
+        - DeviceName: '/dev/xvda'
+          Ebs:
+            VolumeSize: 100
+            VolumeType: gp2
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          echo ECS_CLUSTER=${Cluster} >> /etc/ecs/ecs.config
+          yum install -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${ClientName}-${EnvironmentType}-task'
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !Ref ExecutionRole
+      TaskRoleArn: !Ref ExecutionRole
+      RequiresCompatibilities:
+        - EC2
+      Volumes:
+        - Name: tmpMnt
+          Host:
+            SourcePath: '/tmp'
+      ContainerDefinitions:
+        - Name: nginx-proxy
+          Essential: true
+          Memory: !Ref NginxContainerMemory
+          Image: !Ref NginxImage
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-group: !Ref LogGroup
+              awslogs-stream-prefix: ecs
+          MountPoints:
+            - SourceVolume: tmpMnt
+              ContainerPath: '/tmp'
+          PortMappings:
+            - ContainerPort: !Ref NginxContainerPort80
+            - ContainerPort: !Ref NginxContainerPort443
+        - Name: ankous-nginx-slave
+          Essential: false
+          Memory: !Ref AnkousContainerMemory
+          Image: !Ref AnkousImage
+          PortMappings:
+            - ContainerPort: !Ref AnkousContainerPort3000
+            - ContainerPort: !Ref AnkousContainerPort3306
+          Environment:
+            - Name: ENV_TYPE
+              Value: !Sub '${ClientName}-${EnvironmentType}'
+            - Name: LOG_LEVEL
+              Value: !Sub '${LogLevel}'
+            - Name: LOG_NAMESPACES
+              Value: "*"
+          VolumesFrom:
+            - SourceContainer: nginx-proxy
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-group: !Ref LogGroup
+              awslogs-stream-prefix: ecs
+        - Name: xray-daemon
+          Essential: false
+          Memory: !Ref XrayDaemonMemory
+          Image: amazon/aws-xray-daemon
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-group: !Ref LogGroup
+              awslogs-stream-prefix: ecs
+          PortMappings:
+            - ContainerPort: !Ref XrayContainerPort2000
+              Protocol: !Ref XrayContainerProtocol
+
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub '${ClientName}-${EnvironmentType}'
+      Cluster: !Ref Cluster
+      DeploymentConfiguration:
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      DesiredCount: !Ref DesiredCount
+      TaskDefinition: !Ref ECSTaskDefinition
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - !Ref SGServiceNetwork
+          Subnets:
+            - !ImportValue
+              'Fn::Sub': '${BaseStack}-Private-Subnet-1'
+            - !ImportValue
+              'Fn::Sub': '${BaseStack}-Private-Subnet-2'
+            - !ImportValue
+              'Fn::Sub': '${BaseStack}-Private-Subnet-3'
+      PlacementStrategies:
+        - Field: instanceId
+          Type: spread
+      LoadBalancers:
+        - ContainerName: nginx-proxy
+          ContainerPort: 80
+          TargetGroupArn: !ImportValue
+            'Fn::Sub': '${BaseStack}-Target-Group-${EnvironmentType}-Public'
+        - ContainerName: nginx-proxy
+          ContainerPort: 80
+          TargetGroupArn: !ImportValue
+            'Fn::Sub': '${BaseStack}-Target-Group-${EnvironmentType}'
+
+  ECSScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: '2'
+      MinCapacity: '1'
+      RoleARN:
+        Fn::Sub: 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService'
+      ServiceNamespace: ecs
+      ScalableDimension: 'ecs:service:DesiredCount'
+      ResourceId: !Join
+        - /
+        - - service
+          - !Ref Cluster
+          - !GetAtt ECSService.Name
+
+  ScaleUp:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub ${AWS::StackName}-ScalePolicyUp
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref "ECSScalableTarget"
+      StepScalingPolicyConfiguration:
+        Cooldown: 60
+        MetricAggregationType: "Average"
+        AdjustmentType: "ChangeInCapacity"
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            ScalingAdjustment: 1
+
+  ScaleDown:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub ${AWS::StackName}-ScalePolicyDown
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref "ECSScalableTarget"
+      StepScalingPolicyConfiguration:
+        Cooldown: 60
+        MetricAggregationType: "Average"
+        AdjustmentType: "ChangeInCapacity"
+        StepAdjustments:
+          - MetricIntervalUpperBound: -1
+            ScalingAdjustment: -1
+
+  MemoryScaleUp:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub ${AWS::StackName}-MemoryPolicyUp
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref "ECSScalableTarget"
+      StepScalingPolicyConfiguration:
+        Cooldown: 60
+        MetricAggregationType: "Average"
+        AdjustmentType: "ChangeInCapacity"
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            ScalingAdjustment: 1
+
+  MemoryScaleDown:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub ${AWS::StackName}-MemoryPolicyDown
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref "ECSScalableTarget"
+      StepScalingPolicyConfiguration:
+        Cooldown: 60
+        MetricAggregationType: "Average"
+        AdjustmentType: "ChangeInCapacity"
+        StepAdjustments:
+          - MetricIntervalUpperBound: -1
+            ScalingAdjustment: -1
+
+  MemoryScaleDownAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: 1
+      Statistic: Average
+      Threshold: 40
+      AlarmDescription: Go in Alarm if CPU is lower than 40% for 5 Minutes
+      Period: 300
+      DatapointsToAlarm: 1
+      AlarmActions:
+        - Ref: MemoryScaleDown
+      Dimensions:
+        - Name: "ServiceName"
+          Value: !GetAtt ECSService.Name
+        - Name: "ClusterName"
+          Value: !Ref Cluster
+      Namespace: AWS/ECS
+      ComparisonOperator: LessThanOrEqualToThreshold
+      MetricName: MemoryUtilization
+
+  MemoryScaleUpAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: 1
+      Statistic: Average
+      Threshold: 80
+      AlarmDescription: Go in Alarm if CPU > 80% for 5 Minutes
+      Period: 300
+      DatapointsToAlarm: 1
+      AlarmActions:
+        - Ref: MemoryScaleUp
+      Dimensions:
+        - Name: "ServiceName"
+          Value: !GetAtt ECSService.Name
+        - Name: "ClusterName"
+          Value: !Ref Cluster
+      Namespace: AWS/ECS
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      MetricName: MemoryUtilization
+
+  ScaleDownAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: 1
+      Statistic: Average
+      Threshold: 40
+      AlarmDescription: Go in Alarm if CPU is lower than 40% for 5 Minutes
+      Period: 300
+      DatapointsToAlarm: 1
+      AlarmActions:
+        - Ref: ScaleDown
+      Dimensions:
+        - Name: "ServiceName"
+          Value: !GetAtt ECSService.Name
+        - Name: "ClusterName"
+          Value: !Ref Cluster
+      Namespace: AWS/ECS
+      ComparisonOperator: LessThanOrEqualToThreshold
+      MetricName: CPUUtilization
+
+  ScaleUpAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: 1
+      Statistic: Average
+      Threshold: 80
+      AlarmDescription: Go in Alarm if CPU > 80% for 5 Minutes
+      Period: 300
+      DatapointsToAlarm: 1
+      AlarmActions:
+        - Ref: ScaleUp
+      Dimensions:
+        - Name: "ServiceName"
+          Value: !GetAtt ECSService.Name
+        - Name: "ClusterName"
+          Value: !Ref Cluster
+      Namespace: AWS/ECS
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      MetricName: CPUUtilization

@@ -1,0 +1,20 @@
+CREATE TABLE `inventory_adjustment` (
+  `ID` int NOT NULL AUTO_INCREMENT,
+  `TaskID` bigint DEFAULT NULL,
+  `UserID` int DEFAULT NULL,
+  `ContainerID` varchar(13) NOT NULL,
+  `Keycode` int DEFAULT NULL,
+  `ProductID` varchar(13) DEFAULT NULL,
+  `ExpectedQty` int NOT NULL,
+  `ActualQty` int NOT NULL,
+  `Delta` int NOT NULL,
+  `DateCreated` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `DateCompleted` datetime DEFAULT NULL,
+  `IdentifierType` enum('suspicious','random','manual','reconcile','nomoreitems','inventory_bot') NOT NULL DEFAULT 'suspicious',
+  `Reason` varchar(40) DEFAULT NULL,
+  PRIMARY KEY (`ID`),
+  KEY `idx_Keycode` (`Keycode`),
+  KEY `idx_Barcode` (`ProductID`),
+  KEY `idx_DateCreated` (`DateCreated`) /*!80000 INVISIBLE */,
+  KEY `taskID_idx` (`TaskID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

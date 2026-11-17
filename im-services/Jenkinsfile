@@ -1,0 +1,254 @@
+#!/usr/bin/env groovy
+if (env.BRANCH_NAME == 'dev') {
+  env.ENVIRONMENT = 'dev'
+                    env.STACK_SUFFIX = '-dev'
+} else if (env.BRANCH_NAME == 'nonprod') {
+  env.ENVIRONMENT = 'nonprod'
+                    env.STACK_SUFFIX = '-nonprod'
+} else if (env.BRANCH_NAME == 'master') {
+  env.ENVIRONMENT = 'prod'
+                    env.STACK_SUFFIX = ' '
+}
+pipeline {
+  agent any
+
+  environment {
+    AWS_DEFAULT_REGION = 'ap-southeast-2'
+    PROJECT_ID = 'rfid'
+    BUILDNUMBER = "${env.BUILD_NUMBER}"
+    SLACK_NOTIFY_CHANNEL = "rfid-jenkins-build"
+  }
+
+  options {
+    disableConcurrentBuilds() // Prevent name collisions
+  }
+
+  stages {
+    stage ('Parallel Linting') {
+      environment {
+        ENVIRONMENT = 'dev'
+      }
+      agent {
+        label 'ec2-amazonlinux'
+      }
+      steps {
+        echo "NO Linting"
+        script {
+          node {
+            deleteDir()
+            checkout scm
+            def builds = [:]
+            builds['shellcheck'] = {
+              ->
+                docker.image("${ECR_HOST}/sharedtools/shellcheck:latest").inside {
+                sh './scripts/shellcheck.sh'
+              }
+            }
+            builds['jenkinsfile'] = {
+              ->
+                docker.image("${ECR_HOST}/sharedtools/astyle:latest").inside {
+                sh './scripts/jenkinsfile_beautify.sh'
+              }
+            }
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.PROJECT_ID}-aws-${env.ENVIRONMENT}"]]) {
+              parallel builds
+            }
+          }
+        }
+        script {
+          node {
+            checkout scm
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.PROJECT_ID}-aws-artefact"]]) {
+              docker.image("${ECR_HOST}/sharedtools/cfn_manage:latest").inside {
+                sh './scripts/cfn_validate.sh'
+              }
+            }
+          }
+        }
+      }
+      post {
+        always {
+          echo 'cleaning workspace'
+          deleteDir()
+        }
+      }
+    }
+    stage('Deploy lambda stack') {
+      when {
+        branch 'dev'
+      }
+      environment {
+        ENVIRONMENT = "${ENVIRONMENT}"
+        CFN_ENVIRONMENT = "${ENVIRONMENT}"
+        CFN_SOURCE_PROJECT_ID = "${env.PROJECT_ID}"
+      }
+      steps {
+        script {
+          checkout scm
+          docker.image("node:12-buster").inside('-u root --privileged') {
+            sh 'ls -lh'
+            sh 'node -v'
+            sh 'npm -v'
+            // sh './lambdas/environments/kmart-internal/deploy/build_artifiact_lambda.sh'
+          }
+        }
+        script {
+          withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "rfid-aws-${env.CFN_ENVIRONMENT}"]]) {
+            docker.image("${ECR_HOST}/sharedtools/cfn_manage:latest").inside {
+              dir("${env.WORKSPACE}/lambdas/shared/src/wms-api-call") {
+                sh 'ls -la'
+              }
+              // sh './lambdas/environments/kmart-internal/deploy/deploy_infra.sh'
+            }
+          }
+        }
+      }
+    }
+    stage('Deploy (Kmart integrations Server)') {
+      /* when {
+        changeset "kmart-integrations/**"
+      } */
+      when {
+        branch 'dev'
+      }
+      steps {
+        script {
+          echo 'Starting Deployment for Integration server'
+          // sh "chmod 400 ./anko-kmart-engineering.pem"
+          // sh "ssh -oStrictHostKeyChecking=no -q -t -i ./anko-kmart-engineering.pem ec2-user@10.240.145.112 './deployScript.sh' "
+          echo "Done Deployment for Integration server"
+        }
+      }
+    }
+    stage('Deploy ECR Image') {
+      environment {
+        PROJECT_ID = "${env.PROJECT_ID}"
+        HTTP_PROXY = 'http://proxy.int.ap-southeast-2.sharedsvc.a-sharedinfra.net:8080'
+        ECR_ENDPOINT = 'https://847029211010.dkr.ecr.ap-southeast-2.amazonaws.com'
+        DOCKER_BUILD_ARGS = "--build-arg http_proxy='${HTTP_PROXY}' --build-arg https_proxy='${HTTP_PROXY}'"
+        BUILDNUMBER = "${env.BUILD_NUMBER}"
+      }
+      agent {
+        label 'ec2-amazonlinux'
+      }
+      steps {
+        script {
+          if(env.BRANCH_NAME == 'master') {
+            echo "Hello from ${env.ENVIRONMENT}"
+            slackSend color: "good", channel: "${env.SLACK_NOTIFY_CHANNEL}", message: "@here: :vertical_traffic_light: <${env.JOB_DISPLAY_URL}|${env.JOB_NAME} #${env.BUILD_NUMBER}> Deploy to ${env.ENVIRONMENT}?"
+            timeout(time: 3, unit: 'HOURS') {
+              input message: "Deploy to ${env.ENVIRONMENT}?"
+            }
+          }
+          echo "Testing ECR Image Push"
+          node {
+            deleteDir()
+            checkout scm
+
+            dir("${env.WORKSPACE}/nginx-ecs-kmart") {
+              sh "ls -la"
+              sh "pwd"
+              def appDockerBuild = docker.build(
+                "${env.PROJECT_ID}/app-${env.ENVIRONMENT}:${env.BRANCH_NAME}-${env.BUILD_NUMBER}",
+                "${env.DOCKER_BUILD_ARGS} ."
+              )
+              /*def appDockerBuild = docker.build(
+              "${env.PROJECT_ID}/app-${env.ENVIRONMENT}:${env.BRANCH_NAME1}-${env.BUILD_NUMBER}",
+              "-f ./nginx-ecs-kmart/Dockerfile ${env.DOCKER_BUILD_ARGS} ."
+              )*/
+              sh "pwd"
+              echo "IMAGE BUILD DONE"
+              withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.PROJECT_ID}-aws-artefact"]]) {
+                sh '''
+                echo `aws ecr get-login --region ap-southeast-2 --registry-ids 847029211010 --no-include-email` > ecrlogin.sh
+                chmod 755 ecrlogin.sh
+                ./ecrlogin.sh
+                '''
+                echo "ECR LOGIN DONE"
+                docker.withRegistry(env.ECR_ENDPOINT) {
+                  dateTime = sh (returnStdout: true, script: 'date -u +%Y%m%d_%H%M%S').trim()
+                  appDockerBuild.push("rfid-tory-nginx-${env.BUILD_NUMBER}")
+                }
+                echo "IMAGE PUSH DONE"
+              }
+            }
+
+            dir("${env.WORKSPACE}/kmart-integrations") {
+              sh "ls -la"
+              sh "pwd"
+              def appDockerBuild = docker.build(
+                                     "${env.PROJECT_ID}/app-${env.ENVIRONMENT}:${env.BRANCH_NAME}-${env.BUILD_NUMBER}",
+                                     "${env.DOCKER_BUILD_ARGS} ."
+                                   )
+                                   sh "pwd"
+                                   echo "IMAGE BUILD DONE FOR KMART INTEGRATION"
+              withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.PROJECT_ID}-aws-artefact"]]) {
+                sh '''
+                echo `aws ecr get-login --region ap-southeast-2 --registry-ids 847029211010 --no-include-email` > ecrlogin.sh
+                chmod 755 ecrlogin.sh
+                ./ecrlogin.sh
+                '''
+                echo "ECR LOGIN DONE"
+                docker.withRegistry(env.ECR_ENDPOINT) {
+                  dateTime = sh (returnStdout: true, script: 'date -u +%Y%m%d_%H%M%S').trim()
+                             appDockerBuild.push("kmart-server1-${env.BUILD_NUMBER}")
+                }
+                echo "IMAGE PUSH DONE FOR KMART INTEGRATION"
+              }
+            }
+          }
+        }
+      }
+      post {
+        always {
+          echo 'cleaning workspace'
+          deleteDir()
+        }
+      }
+    }
+    stage('Deploy to ECS') {
+      environment {
+        CFN_ENVIRONMENT = "${env.ENVIRONMENT}"
+        PROJECT_ID = "${env.PROJECT_ID}"
+        IAM_STACK = "${PROJECT_ID}-iam${env.STACK_SUFFIX}"
+        ELB_STACK = "${PROJECT_ID}-elb${env.STACK_SUFFIX}"
+        EC2_STACK = "${PROJECT_ID}-ec2${env.STACK_SUFFIX}"
+        TASK_DEFINITION = "rfid-tory"
+        AWS_DEFAULT_REGION = "${env.AWS_DEFAULT_REGION}"
+        HTTP_PROXY = 'http://proxy.int.ap-southeast-2.sharedsvc.a-sharedinfra.net:8080'
+        NGINX_IMAGE = "847029211010.dkr.ecr.ap-southeast-2.amazonaws.com/${PROJECT_ID}/app-${env.ENVIRONMENT}:rfid-tory-nginx-${env.BUILD_NUMBER}"
+        SLAVE_IMAGE = "847029211010.dkr.ecr.ap-southeast-2.amazonaws.com/${PROJECT_ID}/app-${env.ENVIRONMENT}:kmart-server1-${env.BUILD_NUMBER}"
+        DOCKER_BUILD_ARGS = "--build-arg http_proxy='${HTTP_PROXY}' --build-arg https_proxy='${HTTP_PROXY}'"
+      }
+      agent {
+        label 'ec2-amazonlinux'
+      }
+      steps {
+        script {
+          node {
+            deleteDir()
+            checkout scm
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.PROJECT_ID}-aws-${env.ENVIRONMENT}"]]) {
+              docker.image("${ECR_HOST}/sharedtools/cfn_manage:latest").inside {
+                sh "echo Build Number is ${env.BUILD_NUMBER}"
+                sh "./scripts/deploy_ecs.sh"
+              }
+            }
+          }
+        }
+      }
+      post {
+        always {
+          echo 'cleaning workspace'
+          deleteDir()
+        }
+      }
+    }
+  }
+  post {
+    always {
+      echo 'Cleaning up workspace'
+      deleteDir()
+    }
+  }
+}

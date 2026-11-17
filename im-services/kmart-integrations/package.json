@@ -1,0 +1,33 @@
+{
+  "name": "kmart-integrations",
+  "version": "1.0.0",
+  "description": "A simple Node Express server that contains integration functions for Kmart",
+  "main": "app.js",
+  "private": true,
+  "scripts": {
+    "start": "node app.js",
+    "nodemon": "nodemon app.js",
+    "local": "npm run nodemon",
+    "kmart-internal": "ENV_TYPE=kmart_internal_dev npm start ",
+    "dev": "ENV_TYPE=kmart-hamilton-dev npm start",
+    "svt": "ENV_TYPE=kmart-hamilton-svt npm start",
+    "uat": "ENV_TYPE=kmart-hamilton-uat npm start",
+    "prod": "ENV_TYPE=kmart-hamilton-prod npm start"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.952.0",
+    "axios": "^0.21.0",
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "csvtojson": "^2.0.10",
+    "express": "^4.17.1",
+    "json-2-csv": "3.7.12",
+    "moment": "^2.29.1",
+    "moment-timezone": "^0.5.32",
+    "mssql": "^6.3.2",
+    "mysql2": "^2.2.5",
+    "node-fetch": "^2.6.1",
+    "snowflake-sdk": "^1.6.1",
+    "stream": "0.0.2"
+  }
+}

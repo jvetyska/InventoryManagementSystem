@@ -1,0 +1,35 @@
+DELIMITER //
+CREATE DEFINER=`admin`@`%` FUNCTION `HourAndMin`(
+Timezone VARCHAR(30),
+Hour INT(11),
+Minute INT(11),
+Type varchar(30) # Provided Time is LESS OR GREATER current time
+) RETURNS int
+BEGIN
+	DECLARE CONVERTEDDATE DATETIME;
+    DECLARE CURRHOUR INT;
+    DECLARE CURRMIN INT;
+    
+	SET CONVERTEDDATE = convert_tz(NOW(), "UTC", Timezone);
+    SET CURRHOUR = HOUR(CONVERTEDDATE);
+	SET CURRMIN = MINUTE(CONVERTEDDATE);
+    SET CURRHOUR = CURRHOUR * 60;
+    SET CURRMIN = CURRMIN + CURRHOUR;
+    SET Hour = Hour * 60;
+    SET Minute = Minute + Hour;
+
+IF (Type = "LESS") THEN
+	IF (CURRMIN > Minute) THEN
+		RETURN TRUE;
+    END IF;
+END IF;
+
+IF (Type = "GREATER") THEN
+	IF (CURRMIN < Minute) THEN
+		RETURN TRUE;
+    END IF;
+END IF;
+
+RETURN FALSE;
+END//
+DELIMITER ;

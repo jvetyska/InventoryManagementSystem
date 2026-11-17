@@ -1,0 +1,18 @@
+{
+    "Input": {
+        "status": "RunDataReady",
+        "inventoryName": "2021-08-20_15-12-00",
+        "inventoryBotID": 26,
+        "mapAreaName": "foh_taskconfig_torylab",
+        "location": "engineeringlab",
+        "executionName": "26_2021-08-22_12-59-00_RunDataReady",
+        "isUpdateInventory": true,
+        "locationID": "1001-STR",
+        "rfidInventoryHistoryInsertDate": "2021-08-23T23:39:36.000Z",
+        "updatedInventory": true,
+        "error": {
+            "Error": "string",
+            "Cause": "{\"errorType\":\"string\",\"errorMessage\":\"Data upload to kafka failed Error: Kafka Upload Lambda insertRFIDHistoryToKafka Function\\n            Failed to upload data to kafka for location: 1001-STR\",\"trace\":[]}"
+        }
+    }
+}

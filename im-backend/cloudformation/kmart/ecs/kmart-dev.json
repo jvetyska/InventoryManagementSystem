@@ -1,0 +1,119 @@
+{
+    "containerDefinitions": [
+        {
+            "name": "nginx-proxy",
+            "image": "495621338632.dkr.ecr.ap-southeast-2.amazonaws.com/kmart-dev-nginx:v_%BUILD_NUMBER%",
+            "memory": 512,
+            "links": [],
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "hostPort": 80,
+                    "protocol": "tcp"
+                },
+                {
+                    "containerPort": 443,
+                    "hostPort": 443,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "entryPoint": [],
+            "command": [],
+            "environment": [],
+            "environmentFiles": [],
+            "mountPoints": [
+                {
+                    "sourceVolume": "tmpMnt",
+                    "containerPath": "/tmp"
+                }
+            ],
+            "volumesFrom": [],
+            "secrets": [],
+            "dnsServers": [],
+            "dnsSearchDomains": [],
+            "extraHosts": [],
+            "dockerSecurityOptions": [],
+            "dockerLabels": {},
+            "ulimits": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "kmart-dev-Logs",
+                    "awslogs-region": "ap-southeast-2",
+                    "awslogs-stream-prefix": "ecs"
+                },
+                "secretOptions": []
+            },
+            "systemControls": []
+        },
+        {
+            "name": "ankous-nginx-slave",
+            "image": "495621338632.dkr.ecr.ap-southeast-2.amazonaws.com/kmart-dev-ankous:v_%BUILD_NUMBER%",
+            "memory": 512,
+            "links": [],
+            "portMappings": [
+                {
+                    "containerPort": 3000,
+                    "hostPort": 3000,
+                    "protocol": "tcp"
+                },
+                {
+                    "containerPort": 3306,
+                    "hostPort": 3306,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": false,
+            "entryPoint": [],
+            "command": [],
+            "environment": [
+                {
+                    "name": "ENV_TYPE",
+                    "value": "kmart-dev"
+                }
+            ],
+            "environmentFiles": [],
+            "mountPoints": [],
+            "volumesFrom": [
+                {
+                    "sourceContainer": "nginx-proxy"
+                }
+            ],
+            "secrets": [],
+            "dnsServers": [],
+            "dnsSearchDomains": [],
+            "extraHosts": [],
+            "dockerSecurityOptions": [],
+            "dockerLabels": {},
+            "ulimits": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "kmart-dev-Logs",
+                    "awslogs-region": "ap-southeast-2",
+                    "awslogs-stream-prefix": "ecs"
+                },
+                "secretOptions": []
+            },
+            "systemControls": []
+        }
+    ],
+    "family": "kmart-dev",
+    "taskRoleArn": "arn:aws:iam::495621338632:role/kmart-dev-ExecutionRole",
+    "executionRoleArn": "arn:aws:iam::495621338632:role/kmart-dev-ExecutionRole",
+    "networkMode": "awsvpc",
+    "volumes": [
+        {
+            "name": "tmpMnt",
+            "host": {
+                "sourcePath": "/tmp"
+            }
+        }
+    ],
+    "placementConstraints": [],
+    "requiresCompatibilities": [
+        "EC2"
+    ],
+    "memory": "2048"
+}

@@ -1,0 +1,12 @@
+{
+    "name": "validate-and-invoke-state-machine",
+    "version": "1.0.0",
+    "description": "validate-and-invoke-state-machine lambda responsible to validate tory status and invoke step function",
+    "dependencies": {},
+    "license": "ISC",
+    "repository": {
+      "type": "git",
+      "url": "https://bitbucket.org/ankous/anko_microservices"
+    }
+  }
+  

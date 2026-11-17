@@ -1,0 +1,13 @@
+{
+    "name": "preprocessing-tory-data",
+    "version": "1.0.0",
+    "description": "preprocessing-tory-data lambda attached with tory data processing step function for preprocessing tory data",
+    "dependencies": {
+        "anko-rfid-tags-manager": "^1.0.1"
+    },
+    "license": "ISC",
+    "repository": {
+        "type": "git",
+        "url": "https://bitbucket.org/ankous/anko_microservices"
+    }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "store-task-token",
+  "version": "1.0.0",
+  "description": "store-task-token",
+  "dependencies": {},
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/ankous/anko_microservices"
+  }
+}

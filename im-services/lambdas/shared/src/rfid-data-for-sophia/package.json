@@ -1,0 +1,7 @@
+{
+  "name": "rfid-data-for-sophia",
+  "version": "1.0.0",
+  "dependencies": {
+    "json2csv": "^5.0.3"
+  }
+}

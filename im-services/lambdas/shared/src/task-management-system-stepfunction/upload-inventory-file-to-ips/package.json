@@ -1,0 +1,11 @@
+{
+  "name": "upload-inventory-file-to-ips",
+  "version": "1.0.0",
+  "description": "upload-inventory-file-to-ips",
+  "dependencies": {},
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/ankous/anko_microservices"
+  }
+}

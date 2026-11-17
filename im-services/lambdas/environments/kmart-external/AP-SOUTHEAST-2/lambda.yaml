@@ -1,0 +1,2696 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: Lamda Functions for DOSA
+Parameters:
+  ParametersStackName:
+    Type: String
+  ClientName:
+    Type: String
+    AllowedPattern: .+
+  Environment:
+    Type: String
+  WmsPrivateUrl:
+    Type: String
+  KmartRfidSohS3Bucket:
+    Type: String
+  SophiaUploadS3Bucket:
+    Type: String
+  RfidDbServer:
+    Type: String
+  LogLevel:
+    Type: String
+    AllowedValues:
+      - error
+      - warn
+      - info
+      - debug
+      - silly
+  TwistLockInstallBundleSecret:
+    Type: String
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 180
+    MemorySize: 256
+    Tracing: Active
+    Environment:
+      Variables:
+        NODE_ENV: !Sub '${ClientName}-hamilton-${Environment}'
+        LOG_LEVEL: !Sub '${LogLevel}'
+        LOG_NAMESPACES: '*'
+        TW_POLICY: !Sub '{{resolve:secretsmanager:${TwistLockInstallBundleSecret}:SecretString:TW_POLICY}}'
+    VpcConfig:
+      SubnetIds:
+        Fn::Split:
+          - ','
+          - Fn::ImportValue: !Sub '${ParametersStackName}-private-subnet-ids'
+      SecurityGroupIds:
+        - !Ref LambdaSecurityGroup
+
+Resources:
+  # This is For Lambda Layers
+  GetConfigLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: lambda-dependencies
+      Description: Layer Dependencies for Node Environment lambda
+      ContentUri: ../../../LayerDependencies/
+      CompatibleRuntimes:
+        - nodejs12.x
+      LicenseInfo: 'MIT'
+      RetentionPolicy: Retain
+
+  PrismaTwistlockLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: prisma-twistlock
+      Description: Integrates Prisma Twistlock vulnerability detection into lambdas.
+      ContentUri: ../../../layers/prisma-twistlock/
+      CompatibleRuntimes:
+        - nodejs12.x
+      LicenseInfo: 'MIT'
+      RetentionPolicy: Retain
+
+  #Security Group for the Lambdas in Private VPC
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub '${ParametersStackName}-vpc-id'
+      GroupName: !Sub '${Environment}-${AWS::Region}-dosa-lambda-securitygroup'
+      GroupDescription: Security Group for the Lambda
+      SecurityGroupEgress:
+        - IpProtocol: TCP
+          CidrIp: 0.0.0.0/0
+          FromPort: 443 # HTTPS
+          ToPort: 443
+        - IpProtocol: TCP
+          CidrIp: 0.0.0.0/0
+          FromPort: 3306 # MySQL connections
+          ToPort: 3306
+        - IpProtocol: TCP
+          CidrIp: 0.0.0.0/0
+          FromPort: 9092 # Kafka connections
+          ToPort: 9092
+        - IpProtocol: TCP
+          CidrIp: 0.0.0.0/0
+          FromPort: 1433
+          ToPort: 1433
+        - IpProtocol: TCP
+          CidrIp: 0.0.0.0/0
+          FromPort: 8084 # Prisma Twistlock phones home on this port
+          ToPort: 8084
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-${AWS::Region}-dosa-lambda-securitygroup'
+
+  # SG Ingress Rule for RDS to allow lambda to connect
+  RDSSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: TCP
+      FromPort: 3306
+      ToPort: 3306
+      GroupId:
+        Fn::ImportValue: !Sub 'dosa-${Environment}-rds-sg-id'
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
+      Description: !Sub 'Allow Lambdas access to ${Environment} RDS.'
+
+  # SNS Topic with subscription for backfill efficacy metric report.
+  BackfillEfficacyMetricReportTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ClientName}-${Environment}-backfill-efficacy-report-metric'
+
+  StoreBackfillScheduleCsvTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ClientName}-${Environment}-store-backfill-schedule-csv'
+
+  BackfillEfficacyMetricReportEngineering:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: engineering@anko.com
+      Protocol: email
+      TopicArn: !Ref BackfillEfficacyMetricReportTopic
+
+  BackfillEfficacyMetricReportBiReport:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: bi.reports@anko.com
+      Protocol: email
+      TopicArn: !Ref BackfillEfficacyMetricReportTopic
+
+  StoreBackfillScheduleCsvEngineering:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: engineering@anko.com
+      Protocol: email
+      TopicArn: !Ref StoreBackfillScheduleCsvTopic
+
+  StoreBackfillScheduleCsvBiReport:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: bi.reports@anko.com
+      Protocol: email
+      TopicArn: !Ref StoreBackfillScheduleCsvTopic
+
+  # Basic cloudwatch log and Secret Manager access policy
+  BasicCloudWatchLogAndSecretManagerAccessPolicy:
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+      - PerformanceReportingIAMRole
+      - CombineDailyLogIAMRole
+      - SESIAMRole
+      - ProcessToryWebhookDataSQSLambdaIAMRole
+      - InventoryFileUploadForKmartIAMRole
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogGroup'
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+              - 'secretsmanager:GetSecretValue'
+              - 'xray:PutTraceSegments'
+              - 'xray:PutTelemetryRecords'
+            Resource: '*'
+      PolicyName: !Sub '${ClientName}-${Environment}-CloudWatchLogAndGetSecret'
+      Roles:
+        - !Ref BasicExecutionAndSecretsIAMRole
+        - !Ref PerformanceReportingIAMRole
+        - !Ref CombineDailyLogIAMRole
+        - !Ref SESIAMRole
+        - !Ref ProcessToryWebhookDataSQSLambdaIAMRole
+        - !Ref InventoryFileUploadForKmartIAMRole
+
+  # Basic lambda execution role and inline policy for cloud watch log and secret access
+  BasicExecutionAndSecretsIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Description: Shared role for Basic Lambda execution and Secret Manager access
+      RoleName: !Sub '${ClientName}-${Environment}-BasicExecutionAndSecretsRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations'
+        - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+
+  # WMS API Call Lambda Function
+  WmsApiCall:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Used to call API endpoints on our WMS application from other CloudWatch rules
+      CodeUri: ../../../shared/src/wms-api-call/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: wms-api-call.handler
+      Events:
+        InventoryCheckCloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-create_random_inventory_checks_every_hour'
+            Input: !Sub '{"api" : "https://${WmsPrivateUrl}/api/create_random_inventory_checks", "request": "POST"}'
+            Schedule: cron(5 * * * ? *)
+            Enabled: true
+        InventoryBackupCloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-create_inventory_backup'
+            Input: !Sub '{"api" : "https://${WmsPrivateUrl}/api/log/record_inventory_history", "request": "POST"}'
+            Schedule: cron(0 * * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      FunctionName: !Sub '${ClientName}-${Environment}-wms-api-call'
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # Performance Report Creation Lambda function
+  PerformanceReportCreation:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-performance-report-creation'
+      Description: Function to create performance report
+      CodeUri: ../../../shared/src/performance-report-creation/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: performance-report-creation.handler
+          DYNAMO_TABLE:
+            Fn::ImportValue: !Sub 'dosa-${Environment}-dynamodb-performance-log-table'
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-performance-report-creation'
+            Schedule: rate(1 hour)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt PerformanceReportingIAMRole.Arn
+
+  # Performance Reporting lambda IAM Role
+  PerformanceReportingIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-AllowS3BucketAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:*'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ClientName}-dosa-${Environment}-logging/*'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations'
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+      Description: Role for performance reporting lambda
+      RoleName: !Sub '${ClientName}-${Environment}-PerformanceReporting'
+
+  # Inventory Bot Schedule Check Lambda Function
+  InventoryBotScheduleCheck:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Checks inventory_bot_schedule and updates bot_process
+      CodeUri: ../../../shared/src/inventory-bot-schedule-check/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: inventory-bot-schedule-check.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-inventory-bot-schedule-check'
+            Schedule: cron(0/15 * * * ? *)
+            Enabled: true
+      Timeout: 300
+      FunctionName: !Sub '${ClientName}-${Environment}-inventory-bot-schedule-check'
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # Inventory Bot Running Check Lambda Function
+  InventoryBotRunningCheck:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Checks inventory_bot whichs have Running bot_process
+      CodeUri: ../../../shared/src/inventory-bot-running-check/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: inventory-bot-running-check.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-inventory-bot-running-check'
+            Schedule: cron(5,20,35,50 * * * ? *)
+            Enabled: true
+      Timeout: 300
+      FunctionName: !Sub '${ClientName}-${Environment}-inventory-bot-running-check'
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  InventoryBotChargingCheck:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Checks if inventory bot is charging
+      CodeUri: ../../../shared/src/inventory-bot-charging-check/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: inventory-bot-charging-check.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-inventory-bot-charging-check'
+            Schedule: cron(15,45 * * * ? *)
+            Enabled: true
+      Timeout: 300
+      FunctionName: !Sub '${ClientName}-${Environment}-inventory-bot-charging-check'
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # Database cleanup
+  DatabaseCleanup:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-database-cleanup'
+      Description: Cleans up tables in MySQL and DynamoDB that contain old logging information no longer needed
+      CodeUri: ../../../shared/src/database-cleanup/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: database-cleanup.handler
+          DYNAMO_TABLE_1:
+            Fn::ImportValue: !Sub 'dosa-${Environment}-dynamodb-task-log-table'
+          DYNAMO_TABLE_2:
+            Fn::ImportValue: !Sub 'dosa-${Environment}-dynamodb-inventory-log-table'
+          DYNAMO_TABLE_3:
+            Fn::ImportValue: !Sub 'dosa-${Environment}-dynamodb-performance-log-table'
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-daily-database-cleanup'
+            Description: Runs once every day at 1am Australia Melbourne time
+            Schedule: cron(0 15 * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt DatabaseCleanupLambdaIAMRole.Arn
+
+    # IAM role associated with Database Cleanup
+  DatabaseCleanupLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Effect: Allow
+                Resource: '*'
+          PolicyName: !Sub '${ClientName}-${Environment}-DatabaseCleanup'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations'
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+      Description: Role for Database Cleanup Lambda
+      RoleName: !Sub '${ClientName}-${Environment}-DatabaseCleanupLambdaIAMRole'
+
+  RestApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub '${ClientName}-${Environment}-apis'
+      StageName: !Sub ${Environment}
+      EndpointConfiguration:
+        Type: PRIVATE
+        VPCEndpointIds:
+          - Fn::ImportValue: !Sub '${ParametersStackName}-api-gateway-endpoint-id'
+      Auth:
+        ResourcePolicy:
+          CustomStatements:
+            [
+              {
+                'Effect': 'Allow',
+                'Principal': '*',
+                'Action': 'execute-api:Invoke',
+                'Resource': !Sub 'arn:aws:execute-api:ap-southeast-2:${AWS::AccountId}:*/*',
+                'Condition':
+                  {
+                    'StringEquals':
+                      {
+                        'aws:SourceVpc':
+                          {
+                            'Fn::ImportValue': !Sub '${ParametersStackName}-vpc-id',
+                          },
+                      },
+                  },
+              },
+            ]
+
+  ApiGatewayLambdaTest:
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Testing api gateway inside the VPC
+      CodeUri: ../src/api-gateway-lambda-test/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: api-gateway-lambda-test.handler
+      Events:
+        ApiGateWayTest:
+          Type: Api
+          Properties:
+            Path: /test-route
+            Method: post
+            RestApiId:
+              Ref: RestApiGateway
+      Timeout: 300
+      FunctionName: !Sub '${ClientName}-${Environment}-api-gateway-test-lambda'
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # Inventory Bot Running Check Lambda Function
+  InventoryBotReportError:
+    DependsOn:
+      - SESIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Sends notifications for inventory bot error
+      CodeUri: ../../../shared/src/inventory-bot-report-error/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: inventory-bot-report-error.handler
+      Events:
+        InventoryBotReportError:
+          Type: Api
+          Properties:
+            Path: /inventory-bot-report-error
+            Method: post
+            RestApiId:
+              Ref: RestApiGateway
+      Timeout: 300
+      FunctionName: !Sub '${ClientName}-${Environment}-inventory-bot-report-error'
+      Role: !GetAtt SESIAMRole.Arn
+
+  SESIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Description: Role for SES Email sending
+      RoleName: !Sub '${ClientName}-${Environment}-SESIAMRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSESFullAccess
+        - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+
+  # Combine daily logs Lambda function
+  CombineDailyLog:
+    DependsOn:
+      - CombineDailyLogIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Called by a CloudWatch rule "hourly_combine_daily_logs" that combines fragmented Firehose logs into one single S3 file that's much easier to parse (once per day)
+      CodeUri: ../../../shared/src/combine-daily-logs/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-hourly-combine-daily-logs'
+            Description: Runs five minutes after the hour. This combines all logs for the current day and puts them into the S3 bucket "NODE_ENV-whm-logging/NODE_ENV-full"
+            Schedule: cron(5 * * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      FunctionName: !Sub '${ClientName}-${Environment}-combine-daily-log'
+      Role: !GetAtt CombineDailyLogIAMRole.Arn
+
+  # Combine daily logs Lambda IAM Role
+  CombineDailyLogIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-AllowS3BucketAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:*'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ClientName}-dosa-${Environment}-logging/*'
+      Description: Role for Combine Daily Log lambda
+      RoleName: !Sub '${ClientName}-${Environment}-CombineDailyLog'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+
+  # Generate Backfill Replenishment Tasks
+  GenerateBackfillReplenishmentTasks:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-generate-backfill-replenishment-task'
+      Description: Generates backfill replenishment tasks
+      CodeUri: ../../../shared/src/generate-backfill-replenishment-tasks/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: generate-backfill-replenishment-tasks.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-generate-backfill-replenishment-tasks'
+            Description: Runs on minutes 1, 16, 31, and 46 of every hour
+            Schedule: cron(1,16,31,46 * * * ? *)
+            Enabled: false
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # Create backfill count tasks
+  CreateBackfillCountTasks:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-create-backfill-count-task'
+      Description: Generates backfill count tasks
+      CodeUri: ../../../shared/src/create-backfill-count-tasks/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: create-backfill-count-tasks.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-create-backfill-count-tasks'
+            Description: Runs on minutes 1, 16, 31, and 46 of every hour
+            Schedule: cron(1,16,31,46 * * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # Synchronization of product data from Kmart's database to Anko's database
+  ProductSyncData:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-product-sync-data'
+      Description: Product synchronization from Kmart's internal MS SQL database to Anko's MySQL database
+      CodeUri: ../src/product-sync-data/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: product-sync-data.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-product-sync-data'
+            Description: Runs once every day at midnight, Sydney, Australia time
+            Schedule: cron(0 14 * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # Synchronization of image data from Kmart's database to Anko's database
+  ImageSyncData:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-image-sync-data'
+      Description: Image synchronization from Kmart's internal MS SQL database to Anko's MySQL database
+      CodeUri: ../src/image-sync-data/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: image-sync-data.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-image-sync-data'
+            Description: Runs once every day 20 minutes after midnight, Sydney, Australia time
+            Schedule: cron(20 14 * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # Scans Anko's database and determines which images to retrieve from Kmart, uploading those to Anko's S3 Bucket
+  ImageSyncS3:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-image-sync-s3'
+      Description: Image synchronization from Kmart's internal MS SQL database to Anko's MySQL database
+      CodeUri: ../src/image-sync-s3/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: image-sync-s3.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-image-sync-s3'
+            Description: Runs once every day 40 minutes after midnight, Sydney, Australia time
+            Schedule: cron(40 14 * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # System Inventory Checks
+  SystemInventoryChecks:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-system-inventory-checks'
+      Description: Create system inventory check tasks
+      CodeUri: ../src/system-inventory-checks/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: system-inventory-checks.handler
+      Events:
+        SystemInventoryChecks:
+          Type: Api
+          Properties:
+            Path: /system-inventory-checks
+            Method: post
+            RestApiId:
+              Ref: RestApiGateway
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # Kmart Inventory Snapshot
+  KmartInventorySnapshot:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-kmart-inventory-snapshot'
+      Description: Create Kmart Inventory Snapshot at the start of backfill schedules
+      CodeUri: ../src/kmart-inventory-snapshot/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: kmart-inventory-snapshot.handler
+      Events:
+        KmartInventorySnapshot:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-kmart-inventory-snapshot'
+            Schedule: cron(3,18,33,48 * * * ? *) # Once every 15 minutes, offset 3 minutes
+            Enabled: false
+      Timeout: 900
+      MemorySize: 1024
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # BackfillEfficacyReport Lambda Function
+  BackfillEfficacyReport:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Properties:
+      Description: Generates backfill efficacy report once per day
+      CodeUri: ../../../shared/src/generate-backfill-efficacy-report/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: generate-backfill-efficacy-report.handler
+      Events:
+        BackfillEfficacyReport:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-create-backfill-efficacy-report'
+            Schedule: cron(0 14 * * ? *) # Once-per-day at Midnight (Sydney, Australia time)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 1024
+      FunctionName: !Sub '${ClientName}-${Environment}-create-backfill-efficacy-report'
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # KafkaDataUpload Lambda Function
+  KafkaDataUpload:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Properties:
+      Description: Uploads data to Kafka
+      PackageType: Image
+      Events:
+        KafkaDataUpload:
+          Type: Api
+          Properties:
+            Path: /kafka-data-upload
+            Method: post
+            RestApiId:
+              Ref: RestApiGateway
+      Timeout: 600
+      MemorySize: 1024
+      FunctionName: !Sub '${ClientName}-${Environment}-kafka-data-upload'
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ../../../shared/src/kafka-data-upload
+      DockerTag: v1
+
+  # Inventory upload for kmart Lambda function
+  InventoryFileUploadForKmart:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - InventoryFileUploadForKmartIAMRole
+    Properties:
+      Description: Function to upload inventory csv to s3 bucket for kmart
+      CodeUri: ../../../shared/src/rfid-inventory-upload-for-kmart/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          S3BUCKET: !Sub '${KmartRfidSohS3Bucket}'
+          S3BUCKETFORDEBUG: !Sub '${ClientName}-dosa-${Environment}-logging'
+          ACLACCESS: bucket-owner-full-control
+          HANDLER: rfid-inventory-upload-for-kmart.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-inventory-file-upload-for-kmart'
+            Schedule: cron(0 * * * ? *)
+            Enabled: false
+      Timeout: 900
+      MemorySize: 1024
+      FunctionName: !Sub '${ClientName}-${Environment}-inventory-file-upload-for-kmart'
+      Role: !GetAtt InventoryFileUploadForKmartIAMRole.Arn
+
+  # Inventory upload for kmart Lambda IAM Role
+  InventoryFileUploadForKmartIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-InventoryFileUploadAllowS3BucketAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:PutObjectAcl'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${KmartRfidSohS3Bucket}/*'
+                  - !Sub 'arn:aws:s3:::${ClientName}-dosa-${Environment}-logging/*'
+              - Effect: 'Allow'
+                Action:
+                  - 'sns:Publish'
+                Resource:
+                  - !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${ClientName}-${Environment}-store-backfill-schedule-csv'
+      Description: Role for Inventory upload for kmart lambda
+      RoleName: !Sub '${ClientName}-${Environment}-InventoryFileUploadForKmart'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+
+  # Data upload for Sophia Lambda function
+  DataUploadForSophia:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - DataUploadForSophiaIAMRole
+    Properties:
+      Description: Function to upload csv to s3 bucket for sophia
+      CodeUri: ../../../shared/src/rfid-data-for-sophia/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          S3BUCKET: !Sub '${SophiaUploadS3Bucket}'
+          HANDLER: rfid-data-for-sophia.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-data-upload-for-sophia'
+            Schedule: cron(0 13 ? * * *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 3008
+      FunctionName: !Sub '${ClientName}-${Environment}-data-upload-for-sophia'
+      Role: !GetAtt DataUploadForSophiaIAMRole.Arn
+
+  # IAM Role for DataUploadForSophia Lambda Function
+  DataUploadForSophiaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - 'sts:AssumeRole'
+            Effect: 'Allow'
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+      Policies:
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - 'S3:*'
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:s3:::${SophiaUploadS3Bucket}/*'
+              - Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Effect: Allow
+                Resource: '*'
+          PolicyName: !Sub '${ClientName}-${Environment}-DataUploadForSophia'
+      Description: Role for uploading data file for sophia lambda
+      RoleName: !Sub '${ClientName}-${Environment}-DataUploadForSophia'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+
+  # SQS for tory Webhook
+  ProcessToryWebhookDataQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 2
+      QueueName: !Sub '${ClientName}-${Environment}-process-tory-webhook-data'
+      ReceiveMessageWaitTimeSeconds: 1
+      VisibilityTimeout: 301
+
+  # Lambda function attach to SQS for tory Webhook
+  ProcessToryWebhookDataSQSLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - ProcessToryWebhookDataSQSLambdaIAMRole
+    Properties:
+      Description: Attached with SQS to process tory webhook data
+      CodeUri: ../../../shared/src/process-tory-webhook-data/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: process-tory-webhook-data.handler
+      Timeout: 300
+      MemorySize: 1024
+      FunctionName: !Sub '${ClientName}-${Environment}-process-tory-webhook-data'
+      Role: !GetAtt ProcessToryWebhookDataSQSLambdaIAMRole.Arn
+
+  # IAM role for SQS for ProcessToryWebhookDataSQSLambda
+  ProcessToryWebhookDataSQSLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Description: Role for process tory data SQS lambda
+      RoleName: !Sub '${ClientName}-${Environment}-ProcessToryWebhookDataSQSLambdaIAMRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+
+  # event mapping for sqs to lambda function
+  ProcessToryWebhookDataSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - ProcessToryWebhookDataQueue
+          - Arn
+      FunctionName:
+        Ref: ProcessToryWebhookDataSQSLambda
+
+  TaskManagementSystemScheduler:
+    DependsOn:
+      - TaskManagementSchedulerLambdaIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-task-management-scheduler'
+      Description: Invokes Step Function
+      CodeUri: ../../../shared/src/task-management-system-stepfunction/task-management-scheduler/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-task-management-scheduler'
+            Schedule: cron(0/5 * * * ? *)
+            Enabled: true
+      Environment:
+        Variables:
+          STEP_FUNCTION_ARN: !GetAtt TaskManagementSystemStepFunction.Arn
+          HANDLER: task-management-scheduler.handler
+      Timeout: 300
+      MemorySize: 256
+      Role: !GetAtt TaskManagementSchedulerLambdaIAMRole.Arn
+
+  # IAM role associated with all task management state machine lambda function
+  TaskManagementSchedulerLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-TaskManagementSystemInvokeStateMachineRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'states:StartExecution'
+                  - 'states:SendTaskSuccess'
+                  - 'states:SendTaskFailure'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: '*'
+      Description: Role for All Task management State Machine Lambda
+      RoleName: !Sub '${ClientName}-${Environment}-TaskManagementSchedulerLambdaIAMRole'
+
+  # SQS for Kmart Inventory Snapshot
+  KmartInventorySnapshotQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ClientName}-${Environment}-kmart-inventory-snapshot-queue'
+      ReceiveMessageWaitTimeSeconds: 1
+      VisibilityTimeout: 65
+      MessageRetentionPeriod: 1500
+
+  KmartInventorySnapshotSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - KmartInventorySnapshotQueue
+          - Arn
+      FunctionName:
+        Ref: CreateKmartInventorySnapshot
+
+  # SQS for Inventory Snapshot and Backfill
+  InventorySnapshotAndBackfillQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ClientName}-${Environment}-inventory-snapshot-and-backfill-queue'
+      ReceiveMessageWaitTimeSeconds: 1
+      VisibilityTimeout: 125
+      MessageRetentionPeriod: 1500
+
+  InventorySnapshotAndBackfillSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - InventorySnapshotAndBackfillQueue
+          - Arn
+      FunctionName:
+        Ref: GenerateStoreInventorySnapshot
+
+  # SQS for IPS File Upload
+  IPSFileUploadQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ClientName}-${Environment}-ips-file-upload-queue'
+      ReceiveMessageWaitTimeSeconds: 1
+      VisibilityTimeout: 185
+      MessageRetentionPeriod: 1500
+
+  IPSFileUploadSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - IPSFileUploadQueue
+          - Arn
+      FunctionName:
+        Ref: UploadInventoryFileToIPS
+
+  CreateKmartInventorySnapshot:
+    DependsOn:
+      - TaskManagementSystemLambdaIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-create-kmart-inventory-snapshot'
+      Description: Creates Kmart Inventory Snapshot
+      CodeUri: ../../../shared/src/task-management-system-stepfunction/create-kmart-inventory-snapshot/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: create-kmart-inventory-snapshot.handler
+      Timeout: 60
+      MemorySize: 256
+      ReservedConcurrentExecutions: 5
+      Role: !GetAtt TaskManagementSystemLambdaIAMRole.Arn
+
+  StoreTaskToken:
+    DependsOn:
+      - TaskManagementSystemLambdaIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-store-task-token'
+      Description: Stores Task Token
+      CodeUri: ../../../shared/src/task-management-system-stepfunction/store-task-token/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: store-task-token.handler
+      Timeout: 300
+      MemorySize: 256
+      ReservedConcurrentExecutions: 50
+      Role: !GetAtt TaskManagementSystemLambdaIAMRole.Arn
+
+  GenerateStoreInventorySnapshot:
+    DependsOn:
+      - TaskManagementSystemLambdaIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-generate-store-inventory-snapshot'
+      Description: Generates Store Inventory Snapshot
+      CodeUri: ../../../shared/src/task-management-system-stepfunction/generate-store-inventory-snapshot/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: generate-store-inventory-snapshot.handler
+      Timeout: 120
+      MemorySize: 256
+      ReservedConcurrentExecutions: 5
+      Role: !GetAtt TaskManagementSystemLambdaIAMRole.Arn
+
+  GenerateBackfillTasks:
+    DependsOn:
+      - TaskManagementSystemLambdaIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-generate-backfill-tasks'
+      Description: Generates Backfill Tasks
+      CodeUri: ../../../shared/src/task-management-system-stepfunction/generate-backfill-tasks/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: generate-backfill-tasks.handler
+      Timeout: 300
+      MemorySize: 256
+      ReservedConcurrentExecutions: 25
+      Role: !GetAtt TaskManagementSystemLambdaIAMRole.Arn
+
+  GenerateRFIDExceptionTasks:
+    DependsOn:
+      - TaskManagementSystemLambdaIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-generate-rfid-exception-tasks'
+      Description: Generates RFID Exception Tasks
+      CodeUri: ../../../shared/src/task-management-system-stepfunction/generate-rfid-exception-tasks/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: generate-rfid-exception-tasks.handler
+      Timeout: 300
+      MemorySize: 256
+      ReservedConcurrentExecutions: 25
+      Role: !GetAtt TaskManagementSystemLambdaIAMRole.Arn
+
+  UploadInventoryFileToIPS:
+    DependsOn:
+      - TaskManagementSystemLambdaIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ClientName}-${Environment}-upload-inventory-file-to-ips'
+      Description: Uploads Inventory Update File to IPS
+      CodeUri: ../../../shared/src/task-management-system-stepfunction/upload-inventory-file-to-ips/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          S3BUCKET: !Sub '${KmartRfidSohS3Bucket}'
+          S3BUCKETFORDEBUG: !Sub '${ClientName}-dosa-${Environment}-logging'
+          ACLACCESS: bucket-owner-full-control
+          HANDLER: upload-inventory-file-to-ips.handler
+      Timeout: 120
+      MemorySize: 256
+      ReservedConcurrentExecutions: 5
+      Role: !GetAtt TaskManagementSystemLambdaIAMRole.Arn
+
+  TaskManagementSystemLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-TaskManagementSystemStateMachineRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'states:StartExecution'
+                  - 'states:SendTaskSuccess'
+                  - 'states:SendTaskFailure'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: '*'
+        - PolicyName: !Sub '${ClientName}-${Environment}-IPSFileUploadAllowS3BucketAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:PutObjectAcl'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${KmartRfidSohS3Bucket}/*'
+                  - !Sub 'arn:aws:s3:::${ClientName}-dosa-${Environment}-logging/*'
+              - Effect: Allow
+                Action:
+                  - 'sns:Publish'
+                Resource:
+                  - !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${ClientName}-${Environment}-store-backfill-schedule-csv'
+      Description: Role for All Task Management State Machine Lambda
+      RoleName: !Sub '${ClientName}-${Environment}-TaskManagementSystemLambdaIAMRole'
+
+  TaskManagementSystemExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: '/'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-TaskManagementSystemExecutionRolePolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'lambda:InvokeFunction'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: '*'
+      Description: Role for Task Management System Step Function Execution
+      RoleName: !Sub '${ClientName}-${Environment}-TaskManagementSystemExecutionRole'
+
+  # TaskManagementSystemStepFunction
+  TaskManagementSystemStepFunction:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${ClientName}-${Environment}-TaskManagementSystemStepFunction'
+      TracingConfiguration:
+        Enabled: true
+      DefinitionString: !Sub
+        - |-
+          {
+            "StartAt": "GetStartRunKmartInventorySnapshot",
+            "States": {
+              "GetStartRunKmartInventorySnapshot": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+                "Parameters": {
+                  "QueueUrl": "${KmartInventorySnapshotSQSURL}",
+                  "MessageBody": {
+                    "TaskToken.$": "$$.Task.Token",
+                    "Input.$": "$",
+                    "Type": "ScheduleStart"
+                  }
+                },
+                "HeartbeatSeconds": 1800,
+                "Next": "StoreStartingTaskToken",
+                "Catch": [
+                  {
+                    "ErrorEquals": [
+                      "States.ALL"
+                    ],
+                    "Next": "StoreStartingTaskToken",
+                    "ResultPath": "$.error"
+                  }
+                ]
+              },
+              "StoreStartingTaskToken": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+                "Parameters": {
+                  "FunctionName": "${StoreTaskTokenName}",
+                  "Payload": {
+                    "TaskToken.$": "$$.Task.Token",
+                    "status": "WaitingForStocktakes",
+                    "executionID.$": "$$.Execution.Id",
+                    "Input.$": "$"
+                  }
+                },
+                "HeartbeatSeconds": 36000,
+                "Next": "GetEndRunKmartInventorySnapshot"
+              },
+              "GetEndRunKmartInventorySnapshot": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+                "Parameters": {
+                  "QueueUrl": "${KmartInventorySnapshotSQSURL}",
+                  "MessageBody": {
+                    "Input.$": "$",
+                    "TaskToken.$": "$$.Task.Token",
+                    "Type": "ScheduleEnd"
+                  }
+                },
+                "Catch": [
+                  {
+                    "ErrorEquals": [
+                      "States.ALL"
+                    ],
+                    "Next": "GenerateStoreInventorySnapshot",
+                    "ResultPath": "$.error"
+                  }
+                ],
+                "HeartbeatSeconds": 1800,
+                "Next": "GenerateStoreInventorySnapshot"
+              },
+              "GenerateStoreInventorySnapshot": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+                "Parameters": {
+                  "QueueUrl": "${InventorySnapshotAndBackfillSQSURL}",
+                  "MessageBody": {
+                    "TaskToken.$": "$$.Task.Token",
+                    "Input.$": "$"
+                  }
+                },
+                "HeartbeatSeconds": 1200,
+                "Next": "GenerateBackfillTasks"
+              },
+              "GenerateBackfillTasks": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::lambda:invoke",
+                "Parameters": {
+                  "FunctionName": "${GenerateBackfillTasksName}",
+                  "Payload": {
+                    "Input.$": "$"
+                  }
+                },
+                "Next": "choiceGenerateRFIDExceptionTasks",
+                "Catch": [
+                  {
+                    "ErrorEquals": [
+                      "States.ALL"
+                    ],
+                    "Next": "choiceGenerateRFIDExceptionTasks",
+                    "ResultPath": "$.error"
+                  }
+                ]
+              },
+              "choiceGenerateRFIDExceptionTasks": {
+                "Type": "Choice",
+                "Choices": [
+                  {
+                    "Variable": "$.Payload.rfidExceptionType",
+                    "StringEquals": "system",
+                    "Next": "GenerateSystemRFIDExceptionTasks"
+                  },
+                  {
+                    "Variable": "$.Payload.rfidExceptionType",
+                    "StringEquals": "standard",
+                    "Next": "GenerateStandardRFIDExceptionTasks"
+                  }
+                ],
+                "Default": "EndState"
+              },
+              "GenerateStandardRFIDExceptionTasks": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::lambda:invoke",
+                "Parameters": {
+                  "FunctionName": "${GenerateRFIDExceptionTasksName}",
+                  "Payload": {
+                    "Input.$": "$.Payload",
+                    "Type": "standard"
+                  }
+                },
+                "Next": "EndState"
+              },
+              "GenerateSystemRFIDExceptionTasks": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::lambda:invoke",
+                "Parameters": {
+                  "FunctionName": "${GenerateRFIDExceptionTasksName}",
+                  "Payload": {
+                    "Input.$": "$.Payload",
+                    "Type": "system"
+                  }
+                },
+                "Next": "SendInitialIPSInventoryUpdateFile"
+              },
+              "SendInitialIPSInventoryUpdateFile": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+                "Parameters": {
+                  "QueueUrl": "${IPSFileUploadQueueSQSURL}",
+                  "MessageBody": {
+                    "Input.$": "$.Payload",
+                    "TaskToken.$": "$$.Task.Token",
+                    "Type": "StocktakesFinished"
+                  }
+                },
+                "HeartbeatSeconds": 1800,
+                "Next": "StoreWaitingForRFIDExceptionsTaskToken"
+              },
+              "StoreWaitingForRFIDExceptionsTaskToken": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+                "Parameters": {
+                  "FunctionName": "${StoreTaskTokenName}",
+                  "Payload": {
+                    "Input.$": "$",
+                    "TaskToken.$": "$$.Task.Token",
+                    "status": "WaitingForRFIDExceptionTasks",
+                    "executionID.$": "$$.Execution.Id"
+                  }
+                },
+                "HeartbeatSeconds": 36000,
+                "Next": "SendFinalIPSInventoryUpdateFile"
+              },
+              "SendFinalIPSInventoryUpdateFile": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+                "Parameters": {
+                  "QueueUrl": "${IPSFileUploadQueueSQSURL}",
+                  "MessageBody": {
+                    "Input.$": "$",
+                    "TaskToken.$": "$$.Task.Token",
+                    "Type": "RFIDExceptionTasksFinished"
+                  }
+                },
+                "HeartbeatSeconds": 1800,
+                "Next": "EndState"
+              },
+              "EndState": {
+                "Type": "Pass",
+                "End": true
+              }
+            }
+          }
+        - {
+            KmartInventorySnapshotSQSURL: !Ref KmartInventorySnapshotQueue,
+            InventorySnapshotAndBackfillSQSURL: !Ref InventorySnapshotAndBackfillQueue,
+            IPSFileUploadQueueSQSURL: !Ref IPSFileUploadQueue,
+            StoreTaskTokenName: !Ref StoreTaskToken,
+            GenerateRFIDExceptionTasksName: !Ref GenerateRFIDExceptionTasks,
+            GenerateBackfillTasksName: !Ref GenerateBackfillTasks,
+          }
+      RoleArn: !GetAtt [TaskManagementSystemExecutionRole, Arn]
+
+  # Stream Data to Snowflake Every 15 Minutes Lambda function
+  DataStreamForSnowflake:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Properties:
+      Description: Function to stream data to Snowflake
+      CodeUri: ../../../shared/src/stream-data-to-snowflake/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: stream-data-to-snowflake.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-data-stream-for-snowflake'
+            Schedule: cron(0/15 * * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 3008
+      FunctionName: !Sub '${ClientName}-${Environment}-data-stream-for-snowflake'
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # Stream Data to Snowflake Daily Lambda function
+  DailyDataStreamForSnowflake:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Properties:
+      Description: Function to stream data to Snowflake
+      CodeUri: ../../../shared/src/daily-stream-data-to-snowflake/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: daily-stream-data-to-snowflake.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-daily-data-stream-for-snowflake'
+            Schedule: cron(0 10 * * ? *)
+            Enabled: true
+      Timeout: 900
+      MemorySize: 3008
+      FunctionName: !Sub '${ClientName}-${Environment}-daily-data-stream-for-snowflake'
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  RfidInventoryStockAdjustmentLambdaFunction:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Properties:
+      CodeUri: # Need to use bucket and key notation: https://github.com/aws/serverless-application-model/issues/271
+        Bucket: !Sub 'kmart-dosa-${Environment}-lambda-stack'
+        Key: !Sub 'RFID-lambda-extract-${Environment}.zip'
+      Description: 'Dotnet function for Inventory Stock Adjustment'
+      FunctionName: !Sub '${ClientName}-${Environment}-rfid-inventory-stock-adjustment'
+      Handler: 'RFIDInventoryStockAdjustment::RFIDInventoryStockAdjustment.Function::FunctionHandler'
+      MemorySize: 256
+      Environment:
+        Variables:
+          rfidServer: !Ref RfidDbServer
+          rfidDatabase: 'rfid'
+          rfidSecretName: !Sub 'rfid-db-${Environment}'
+          LAMBDA_ENVIRONMENT: !Ref Environment
+          LOGGING_LEVEL: 'INFO'
+      Role: !GetAtt 'BasicExecutionAndSecretsIAMRole.Arn'
+      Runtime: 'dotnetcore2.1'
+      Timeout: 30
+
+  RfidInventoryStockAdjustmentLambdaPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !GetAtt RfidInventoryStockAdjustmentLambdaFunction.Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+
+  ######################## V2 of Tory processing data using step function ########################
+
+  # Inventory Bot Schedule Check Lambda Function for v2
+  InventoryBotScheduleCheckV2Lambda:
+    DependsOn:
+      - InventoryBotScheduleCheckV2LambdaIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Checks inventory_bot_schedule and updates bot_process
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/inventory-bot-schedule-check-v2/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: inventory-bot-schedule-check-v2.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-inventory-bot-schedule-check-v2'
+            Schedule: cron(0/15 * * * ? *)
+            Enabled: false
+      Timeout: 300
+      FunctionName: !Sub '${ClientName}-${Environment}-inventory-bot-schedule-check-v2'
+      Role: !GetAtt InventoryBotScheduleCheckV2LambdaIAMRole.Arn
+
+  # IAM role for InventoryBotScheduleCheckV2Lambda
+  InventoryBotScheduleCheckV2LambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-InventoryBotScheduleCheckV2LambdaRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role for inventory bot schedule check lambda
+      RoleName: !Sub '${ClientName}-${Environment}-InventoryBotScheduleCheckV2LambdaIAMRole'
+      ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+          - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+
+  # Inventory Bot Running Check Lambda Function
+  InventoryBotRunningCheckV2Lambda:
+    DependsOn:
+      - BasicExecutionAndSecretsIAMRole
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Checks inventory_bot whichs have Running bot_process
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/inventory-bot-running-check-v2/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: inventory-bot-running-check-v2.handler
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub '${ClientName}-${Environment}-inventory-bot-running-check-v2'
+            Schedule: cron(5,20,35,50 * * * ? *)
+            Enabled: false
+      Timeout: 300
+      FunctionName: !Sub '${ClientName}-${Environment}-inventory-bot-running-check-v2'
+      Role: !GetAtt BasicExecutionAndSecretsIAMRole.Arn
+
+  # IAM role for InventoryBotRunningCheckV2Lambda
+  InventoryBotRunningCheckV2LambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-InventoryBotRunningCheckV2LambdaRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role for inventory bot running check lambda
+      RoleName: !Sub '${ClientName}-${Environment}-InventoryBotRunningCheckV2LambdaIAMRole'
+      ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+          - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+
+  # SQS for tory Webhook Validate and Invoke state machine
+  ValidateAndInvokeStateMachineQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ClientName}-${Environment}-validate-and-invoke-state-machine'
+      VisibilityTimeout: 500
+      MessageRetentionPeriod: 10800
+
+  # event mapping for sqs to lambda function
+  ValidateAndInvokeStateMachineSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - ValidateAndInvokeStateMachineQueue
+          - Arn
+      FunctionName:
+        Ref: ValidateAndInvokeStateMachineSQSLambda
+
+  # Lambda function attach to SQS for tory Webhook Validate and Invoke state machine
+  ValidateAndInvokeStateMachineSQSLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - ValidateAndInvokeStateMachineSQSLambdaIAMRole
+    Properties:
+      Description: Attached with SQS to validate tory webhook and start state machine
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/validate-and-invoke-state-machine/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          STEP_FUNCTION_ARN: !GetAtt ProcessToryDataSystemStepFunction.Arn
+          HANDLER: validate-and-invoke-state-machine.handler
+      Timeout: 150
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 2
+      FunctionName: !Sub '${ClientName}-${Environment}-validate-and-invoke-state-machine'
+      Role: !GetAtt ValidateAndInvokeStateMachineSQSLambdaIAMRole.Arn
+
+  # IAM role for ValidateAndInvokeStateMachineSQSLambda
+  ValidateAndInvokeStateMachineSQSLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-ValidateAndInvokeStateMachineSQSLambdaRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'states:StartExecution'
+                  - 'states:SendTaskSuccess'
+                  - 'states:SendTaskFailure'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role for validate tory webhook and start state machine SQS lambda
+      RoleName: !Sub '${ClientName}-${Environment}-ValidateAndInvokeStateMachineSQSLambdaIAMRole'
+      ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+          - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+
+  # SQS to Preprocessing tory Data
+  PreprocessingToryDataQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ClientName}-${Environment}-preprocessing-tory-data'
+      VisibilityTimeout: 200
+      MessageRetentionPeriod: 10800
+
+  # event mapping for sqs to lambda function
+  PreprocessingToryDataSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - PreprocessingToryDataQueue
+          - Arn
+      FunctionName:
+        Ref: PreprocessingToryDataSQSLambda
+
+  # Lambda function attach to SQS for Preprocessing Tory data
+  PreprocessingToryDataSQSLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - ProcessToryDataSystemLambdaIAMRole
+    Properties:
+      Description: Attached with SQS to preprocessing tory data
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/preprocessing-tory-data/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: preprocessing-tory-data.handler
+      Timeout: 180
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 3
+      FunctionName: !Sub '${ClientName}-${Environment}-preprocessing-tory-data'
+      Role: !GetAtt ProcessToryDataSystemLambdaIAMRole.Arn
+
+  # SQS to update inventory with tory Data
+  UpdatingInventoryDataQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ClientName}-${Environment}-update-inventory'
+      VisibilityTimeout: 200
+      MessageRetentionPeriod: 10800
+
+  # event mapping for sqs to lambda function
+  UpdatingInventoryDataSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - UpdatingInventoryDataQueue
+          - Arn
+      FunctionName:
+        Ref: UpdatingInventoryDataSQSLambda
+
+  # Lambda function attach to SQS for updating inventory with tory Data
+  UpdatingInventoryDataSQSLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - ProcessToryDataSystemLambdaIAMRole
+    Properties:
+      Description: Attached with SQS to update inventory with tory data
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/update-inventory/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: update-inventory.handler
+      Timeout: 180
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 3
+      FunctionName: !Sub '${ClientName}-${Environment}-update-inventory'
+      Role: !GetAtt ProcessToryDataSystemLambdaIAMRole.Arn
+
+  # Lambda function to send data to kafka
+  KafkaUploadLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - ProcessToryDataSystemLambdaIAMRole
+    Properties:
+      Description: Upload tory processing data to kafka
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/kafka-upload/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: kafka-upload.handler
+      Timeout: 300
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 10
+      FunctionName: !Sub '${ClientName}-${Environment}-kafka-upload'
+      Role: !GetAtt ProcessToryDataSystemLambdaIAMRole.Arn
+
+  # Lambda function to upload inventory bot map to S3
+  UploadToryMapLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - ProcessToryDataSystemLambdaIAMRole
+    Properties:
+      Description: Upload tory map to s3
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/upload-tory-map/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: upload-tory-map.handler
+      Timeout: 120
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 50
+      FunctionName: !Sub '${ClientName}-${Environment}-upload-tory-map'
+      Role: !GetAtt ProcessToryDataSystemLambdaIAMRole.Arn
+
+  # Lambda function to send error
+  ErrorReportingLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - ProcessToryDataSystemLambdaIAMRole
+    Properties:
+      Description: Error reporting for tory processing state machine
+      CodeUri: ../../../shared/src/inventory-bot-stepfunction/error-reporting/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Environment:
+        Variables:
+          HANDLER: error-reporting.handler
+      Timeout: 60
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 50
+      FunctionName: !Sub '${ClientName}-${Environment}-error-reporting'
+      Role: !GetAtt ProcessToryDataSystemLambdaIAMRole.Arn
+
+  # IAM role for all lambda attached with process tory data system step function
+  ProcessToryDataSystemLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-ProcessToryDataSystemLambdaPolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'states:StartExecution'
+                  - 'states:SendTaskSuccess'
+                  - 'states:SendTaskFailure'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                  - 's3:PutObject'
+                  - 's3:PutObjectAcl'
+                Resource: "*"
+      Description: Role for All Process Tory data State Machine Lambda
+      RoleName: !Sub '${ClientName}-${Environment}-ProcessToryDataSystemLambdaIAMRole'
+
+  # Role attached with step function
+  ProcessToryDataSystemExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-ProcessToryDataSystemExecutionRolePolicy'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'lambda:InvokeFunction'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role for Task Management System Step Function Execution
+      RoleName: !Sub '${ClientName}-${Environment}-ProcessToryDataSystemExecutionRole'
+
+  # ProcessToryDataSystemStepFunction
+  ProcessToryDataSystemStepFunction:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${ClientName}-${Environment}-ProcessToryDataSystemStepFunction'
+      TracingConfiguration:
+        Enabled: true
+      DefinitionString:
+        !Sub
+          - |-
+            {
+              "Comment": "Tort-data-processing",
+              "StartAt": "choiceByStatus",
+              "States": {
+                "choiceByStatus": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Variable": "$.status",
+                      "StringEquals": "RunDataReady",
+                      "Next": "GetToryDataAndPreprocess"
+                    },
+                    {
+                      "Variable": "$.status",
+                      "StringEquals": "Interrupted",
+                      "Next": "ErrorReporting"
+                    }
+                  ],
+                  "Default": "EndState"
+                },
+                "GetToryDataAndPreprocess": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+                  "Parameters": {
+                    "QueueUrl": "${PreprocessingToryDataSQSURL}",
+                    "MessageBody": {
+                      "TaskToken.$": "$$.Task.Token",
+                      "Input.$": "$"
+                    }
+                  },
+                  "ResultPath": "$",
+                  "HeartbeatSeconds": 10800,
+                  "Next": "ChoiceForUpdateInventory",
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "Next": "ErrorReporting",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "ChoiceForUpdateInventory": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Variable": "$.isUpdateInventory",
+                      "BooleanEquals": true,
+                      "Next": "UpdateInventoryWithToryData"
+                    },
+                    {
+                      "Variable": "$.isUpdateInventory",
+                      "BooleanEquals": false,
+                      "Next": "WaitBeforeMapUpload"
+                    }
+                  ],
+                  "Default": "EndState"
+                },
+                "UpdateInventoryWithToryData": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+                  "Parameters": {
+                    "QueueUrl": "${UpdatingInventoryDataSQSURL}",
+                    "MessageBody": {
+                      "TaskToken.$": "$$.Task.Token",
+                      "Input.$": "$"
+                    }
+                  },
+                  "ResultPath": "$",
+                  "HeartbeatSeconds": 10800,
+                  "Next": "KafkaUpload",
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "Next": "ErrorReporting",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "KafkaUpload": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke",
+                  "Parameters": {
+                    "FunctionName": "${KafkaUploadLambda}",
+                    "Payload": {
+                      "Input.$": "$"
+                    }
+                  },
+                  "ResultPath": "$.Payload",
+                  "Next": "WaitBeforeMapUpload",
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "Next": "ErrorReporting",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "WaitBeforeMapUpload": {
+                  "Type": "Wait",
+                  "Seconds": 180,
+                  "Next": "UploadToryMap"
+                },
+                "UploadToryMap": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke",
+                  "Parameters": {
+                    "FunctionName": "${UploadToryMapLambda}",
+                    "Payload": {
+                      "Input.$": "$"
+                    }
+                  },
+                  "ResultPath": "$.Payload",
+                  "Next": "EndState",
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "Next": "ErrorReportingForMap",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "ErrorReporting": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke",
+                  "Parameters": {
+                    "FunctionName": "${ErrorReportingLambda}",
+                    "Payload": {
+                      "Input.$": "$"
+                    }
+                  },
+                  "ResultPath": "$.Payload",
+                  "Next": "WaitBeforeMapUpload",
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "Next": "WaitBeforeMapUpload",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "ErrorReportingForMap": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke",
+                  "Parameters": {
+                    "FunctionName": "${ErrorReportingLambda}",
+                    "Payload": {
+                      "Input.$": "$"
+                    }
+                  },
+                  "ResultPath": "$",
+                  "Next": "EndState",
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "Next": "FailState",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "EndState": {
+                  "Type": "Pass",
+                  "End": true
+                },
+                "FailState": {
+                  "Type": "Fail",
+                  "Error": "See the start of FailState"
+                }
+              }
+            }
+          - {
+              PreprocessingToryDataSQSURL: !Ref PreprocessingToryDataQueue,
+              UpdatingInventoryDataSQSURL: !Ref UpdatingInventoryDataQueue,
+              KafkaUploadLambda: !Ref KafkaUploadLambda,
+              UploadToryMapLambda: !Ref UploadToryMapLambda,
+              ErrorReportingLambda: !Ref ErrorReportingLambda
+            }
+      RoleArn: !GetAtt [ ProcessToryDataSystemExecutionRole, Arn ]
+  # =============================== Generic Slack Reporting Infra (start) ===============================
+  # Generic Slack Report Role
+  GenericSlackReportingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-GenericSlackReportingRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*" 
+      Description: Role to post messages to slack
+      RoleName:  !Sub '${ClientName}-${Environment}-GenericSlackReportingRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+  # Report on Slack
+  GenericSlackReporting:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - GenericSlackReportingRole
+    Properties:
+      Description: lambda function that takes a message body and slack channel and reports to it 
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      CodeUri: ../../../shared/src/generic-reporting-slack
+      Events:
+        HttpPost:
+          Type: Api
+          Properties:
+            Path: '/reports/slack'
+            Method: post
+            RestApiId:
+              Ref: RestApiGateway
+      Timeout: 900
+      MemorySize: 512
+      Role: !GetAtt GenericSlackReportingRole.Arn
+      FunctionName: !Sub '${ClientName}-${Environment}-generic-slack-reporting'
+  # =============================== Generic Slack Reporting Infra (End) ===============================
+  # =============================== Product & Image Sync Infra (Start) ===============================
+  # FetchProductsFromIPS IAM Role
+  FetchProductsFromIPSIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-FetchProductsFromIPSIAMRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*" 
+      Description: Role to fetch and push data onto SQS
+      RoleName: !Sub '${ClientName}-${Environment}-FetchProductsFromIPSIAMRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+  # FetchProductsFromIPS Lamba Stack
+  FetchProductsFromIPSLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - FetchProductsFromIPSIAMRole
+    Properties:
+      Description: Fetch Products from IPS DB
+      CodeUri: ../../../shared/src/product-and-image-sync/fetch-products-ips-db/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Timeout: 900
+      MemorySize: 4096
+      ReservedConcurrentExecutions: 5
+      FunctionName: !Sub '${ClientName}-${Environment}-fetch-product-from-ips'
+      Role: !GetAtt FetchProductsFromIPSIAMRole.Arn
+      Events:
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Name:  !Sub '${ClientName}-${Environment}-daily-product-sync-init'
+            Schedule: cron(0 14 * * ? *)
+            Enabled: false
+  # SQS
+  PersitProductsToDBQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 5
+      QueueName: !Sub '${ClientName}-${Environment}-persist-product-to-db-queue'
+      ReceiveMessageWaitTimeSeconds: 1
+      VisibilityTimeout: 900
+      MessageRetentionPeriod: 7200
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt 'ProductSyncDeadLetterQueue.Arn'
+        maxReceiveCount: 3
+  # Role for Lambda
+  PersistProductsToDBLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-PersistProductsToDBLambdaIAMRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role for lambda PersistProductsToDBLambda which saves products into the db
+      RoleName: !Sub '${ClientName}-${Environment}-PersistProductsToDBLambdaIAMRole' 
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+  # Lambda
+  PersistProductsToDBLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - PersistProductsToDBLambdaIAMRole
+    Properties:
+      Description: Process Products Data that are being put on the SQS
+      CodeUri: ../../../shared/src/product-and-image-sync/persist-products-to-db/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Timeout: 900
+      MemorySize: 1024
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      ReservedConcurrentExecutions: 5
+      FunctionName: !Sub '${ClientName}-${Environment}-persist-product-to-db'
+      Role: !GetAtt PersistProductsToDBLambdaIAMRole.Arn
+  # Lambada SQS Mapping
+  PersistProductsToDBSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - PersitProductsToDBQueue
+          - Arn  
+      FunctionName:
+        Ref: PersistProductsToDBLambda
+  #FetchAndCompareImagesPIMSQueue
+  FetchAndCompareImagesPIMSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 5
+      QueueName: !Sub '${ClientName}-${Environment}-fetch-and-compare-images-pims-queue'
+      ReceiveMessageWaitTimeSeconds: 1
+      VisibilityTimeout: 900
+      MessageRetentionPeriod: 7200
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt 'ProductSyncDeadLetterQueue.Arn'
+        maxReceiveCount: 3
+  #FetchAndCompareImagesPIMSIAMRole
+  FetchAndCompareImagesPIMSIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-FetchAndCompareImagesPIMSIAMRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role to process keycode from queue and fetch images from PIMS DB
+      RoleName: !Sub '${ClientName}-${Environment}-FetchAndCompareImagesPIMSIAMRole' 
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary' 
+  #FetchAndCompareImagesPIMSLambda
+  FetchAndCompareImagesPIMSLambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - FetchAndCompareImagesPIMSIAMRole
+    Properties:
+      Description: Get Keycodes from Queue, fetch the ImageHash from PIM_DB and check if image changed, then push to next queue
+      CodeUri: ../../../shared/src/product-and-image-sync/fetch-and-compare-images-pims/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Timeout: 900
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 5
+      FunctionName: !Sub '${ClientName}-${Environment}-fetch-and-compare-images-pims'
+      Role: !GetAtt FetchAndCompareImagesPIMSIAMRole.Arn
+  #FetchAndCompareImagesPIMSSQSEvent
+  FetchAndCompareImagesPIMSSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - FetchAndCompareImagesPIMSQueue
+          - Arn  
+      FunctionName:
+        Ref: FetchAndCompareImagesPIMSLambda
+  #UploadImagesToS3Queue
+  UploadImagesToS3Queue:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 5
+      QueueName: !Sub '${ClientName}-${Environment}-upload-images-to-s3-queue'
+      ReceiveMessageWaitTimeSeconds: 1
+      VisibilityTimeout: 905
+      MessageRetentionPeriod: 7200
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt 'ProductSyncDeadLetterQueue.Arn'
+        maxReceiveCount: 3
+  #UploadImagesToS3IAMRole
+  UploadImagesToS3IAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: !Sub '${ClientName}-${Environment}-UploadImagesToS3IAMRolePolicy'
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'secretsmanager:GetSecretValue'
+                  - 'xray:PutTraceSegments'
+                  - 'xray:PutTelemetryRecords'
+                Resource: "*"
+      Description: Role to upload product images to our s3 bucket
+      RoleName:  !Sub '${ClientName}-${Environment}-UploadImagesToS3IAMRole' 
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations
+      PermissionsBoundary:
+        Fn::ImportValue: !Sub '${ParametersStackName}-iam-role-boundary'
+  #UploadImagesToS3Lambda
+  UploadImagesToS3Lambda:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - UploadImagesToS3IAMRole
+    Properties:
+      Description: Process Products Data that are being put on the SQS
+      CodeUri: ../../../shared/src/product-and-image-sync/upload-images-to-s3/
+      Handler: dosa.handler
+      Runtime: nodejs12.x
+      Layers:
+        - !Ref GetConfigLayer
+        - !Ref PrismaTwistlockLayer
+      Timeout: 900
+      MemorySize: 2048
+      ReservedConcurrentExecutions: 20
+      FunctionName:  !Sub '${ClientName}-${Environment}-upload-images-to-s3'
+      Role: !GetAtt UploadImagesToS3IAMRole.Arn 
+  #UploadImagesToS3LambdaSQSEvent
+  UploadImagesToS3LambdaSQSEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - UploadImagesToS3Queue
+          - Arn  
+      FunctionName:
+        Ref: UploadImagesToS3Lambda
+  ProductSyncDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ClientName}-${Environment}-product-sync-dead-letter-queue' 
+  # =============================== Product & Image Sync Infra (end) =============================== 
+
+Outputs:
+  TaskManagementSystemLambdaIAMRoleArn:
+    Description: Lambda Role Arn for the step functions
+    Value: !GetAtt TaskManagementSystemLambdaIAMRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-step-function-lambda-role-arn'
+  InventoryFileUploadForKmartIAMRoleArn:
+    Description: Lambda Role Arn Upload Inventory
+    Value: !GetAtt InventoryFileUploadForKmartIAMRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-inventory-file-upload-for-kmart-arn'
+  DataUploadForSophiaIAMRoleArn:
+    Description: Lambda Role Arn for the Sophia Upload
+    Value: !GetAtt DataUploadForSophiaIAMRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-rfid-data-for-sophia-arn'
